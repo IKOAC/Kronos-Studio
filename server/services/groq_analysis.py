@@ -291,7 +291,7 @@ class GroqAnalysisService:
                 {"role": "system", "content": system},
                 {"role": "user", "content": body},
             ],
-            "reasoning_effort": "low",
+            "reasoning_effort": "high",
             "temperature": 0,
             "max_completion_tokens": MAX_COMPLETION_TOKENS,
             "stream": False,

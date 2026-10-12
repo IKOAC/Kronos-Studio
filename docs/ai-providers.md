@@ -10,7 +10,7 @@ Open `/ai-analysis` from the navigation. Select the market source, symbol, candl
 | 2 | Routeway | `gpt-oss-120b` | `https://api.routeway.ai/v1/chat/completions` |
 | 3 | OpenRouter | `openai/gpt-oss-120b` | `https://openrouter.ai/api/v1/chat/completions` |
 
-Both IDs identify GPT-OSS-120B. No other model, size, automatic model router, model fallback array, or user-selected endpoint is accepted. A provider response must report one of these exact model aliases; missing or different model metadata is rejected after accounting for the attempt. HTTP redirects are refused. OpenRouter may select a backend serving this same requested model; `require_parameters` keeps the structured-output requirements. This never selects an alternate model.
+Both IDs identify GPT-OSS-120B. Market assessment and all three TradingAgents roles request high reasoning effort: `reasoning_effort: "high"` for Groq/Routeway, and `reasoning: {effort: "high", exclude: true}` for OpenRouter. No other model, size, automatic model router, model fallback array, or user-selected endpoint is accepted. A provider response must report one of these exact model aliases; missing or different model metadata is rejected after accounting for the attempt. HTTP redirects are refused. OpenRouter may select a backend serving this same requested model; `require_parameters` keeps the structured-output requirements. This never selects an alternate model.
 
 Official API references: [Routeway OpenAI-compatible configuration](https://docs.routeway.ai/getting-started/chat-uis), [Routeway model catalog](https://routeway.ai/models), [OpenRouter provider routing](https://openrouter.ai/docs/guides/routing/provider-selection).
 

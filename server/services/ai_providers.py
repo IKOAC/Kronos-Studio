@@ -371,7 +371,7 @@ class ProviderAnalysisService(GroqAnalysisService):
             body["max_tokens"] = body.pop("max_completion_tokens")
         if provider.name == "openrouter":
             body.pop("reasoning_effort", None)
-            body["reasoning"] = {"effort": "low", "exclude": True}
+            body["reasoning"] = {"effort": "high", "exclude": True}
             body["provider"] = {"require_parameters": True}
         return body
 

@@ -61,6 +61,11 @@ def test_each_provider_uses_only_exact_120b_id_and_reports_actual_provider(
     assert result["provider"] == PROVIDERS[target].name
     assert result["model"] == GROQ_MODEL
     assert calls[0][1]["model"] == PROVIDERS[target].model
+    if target == 2:
+        assert calls[0][1]["reasoning"] == {"effort": "high", "exclude": True}
+        assert "reasoning_effort" not in calls[0][1]
+    else:
+        assert calls[0][1]["reasoning_effort"] == "high"
     assert not any(
         key in calls[0][1] for key in ("models", "route", "fallbacks", "preset")
     )
