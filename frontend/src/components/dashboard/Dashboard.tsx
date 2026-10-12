@@ -6,6 +6,7 @@ import { Combobox, ComboboxInput, ComboboxContent, ComboboxList, ComboboxItem } 
 
 import InfoPanel from "./InfoPanel";
 import PredictionChart from "./PredictionChart";
+import ModelComparisonPanel from "./ModelComparisonPanel";
 import DownloadActions from "./DownloadActions";
 import SaveResultAction from "./SaveResultAction";
 import { usePricePredictionStore } from "@/stores/pricePredictionStore";
@@ -164,7 +165,10 @@ const Dashboard = () => {
                 <p className='text-xs text-red-400/40 font-mono'>{error.timestamp.toLocaleTimeString()}</p>
               </div>
             ) : hasResult ? (
-              <PredictionChart ref={chartRef} data={displayResult} />
+              <div className="flex flex-col gap-4 overflow-y-auto">
+                <PredictionChart ref={chartRef} data={displayResult} />
+                <ModelComparisonPanel comparisons={displayResult.model_comparisons ?? []} />
+              </div>
             ) : (
               <div className='size-full border flex flex-col items-center justify-center gap-4'>
                 <HugeiconsIcon
