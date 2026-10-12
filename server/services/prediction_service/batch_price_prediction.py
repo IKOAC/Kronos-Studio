@@ -146,7 +146,7 @@ class BatchPricePredictionService:
             model_comparisons = self._build_model_comparisons(
                 model_predictions=per_item_predictions,
                 last_history_close=float(prepared_data["df"]["close"].iloc[-1]),
-                sample_count=request.sample_count,
+                sample_count=first_request.sample_count,
             )
 
             result = {
