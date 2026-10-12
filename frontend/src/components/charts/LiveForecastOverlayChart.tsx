@@ -30,7 +30,7 @@ type CandleSeriesUpdater = {
 const toChartTime = (value: string): UTCTimestamp => {
   // Backend Binance timestamps are naive ISO strings representing UTC. Treat
   // those as UTC too, so historical candles line up with UTC WebSocket times.
-  const normalized = /(?:Z|[+-]\\d{2}:?\\d{2})$/i.test(value) ? value : `${value}Z`;
+  const normalized = value.endsWith("Z") || /[+-]\d{2}:?\d{2}$/.test(value) ? value : `${value}Z`;
   return Math.floor(new Date(normalized).getTime() / 1000) as UTCTimestamp;
 };
 
@@ -122,11 +122,18 @@ export default function LiveForecastOverlayChart({
         priceLineVisible: false,
         crosshairMarkerVisible: true
       });
+      const historicalAnchor = data.history.at(-1);
+      const forecastPoints = comparison.prediction.map((item) => ({
+        time: toChartTime(item.timestamps),
+        value: item.close
+      }));
       forecast.setData(
-        comparison.prediction.map((item) => ({
-          time: toChartTime(item.timestamps),
-          value: item.close
-        }))
+        historicalAnchor
+          ? [
+              { time: toChartTime(historicalAnchor.timestamps), value: historicalAnchor.close },
+              ...forecastPoints
+            ]
+          : forecastPoints
       );
     });
 
