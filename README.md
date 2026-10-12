@@ -141,14 +141,15 @@ Then open **[http://localhost:3000](http://localhost:3000)**.
 
 ## Three-model forecasting and live comparison
 
-Every **Single** and **Batch** prediction now evaluates all three Kronos models:
-`kronos-mini`, `kronos-small`, and `kronos-base`. The model selector determines
-which forecast is drawn in the main chart; all three forecasts are available in
-the **Three-model comparison** panel.
+By default, **Single** and **Batch** predictions evaluate all three Kronos models:
+`kronos-mini`, `kronos-small`, and `kronos-base`. Open **Choose models** to
+select a different subset, add Chronos-2, TimesFM 2.5, or FinCast, and choose
+the primary chart model. Forecasts for the selected models appear in the
+**Model comparison** panel. See [additional model setup](docs/additional-models.md).
 
 Each model's **directional agreement** score is the fraction of the three
 models predicting the same final-close direction, with a 0.1% neutral band.
-The only possible scores with three models are 33.3%, 66.7%, and 100%.
+With the default three-model selection the possible scores are 33.3%, 66.7%, and 100%.
 **These scores are not probabilities of forecast accuracy or profitability.**
 Sample count controls the model's internal sampling; it does not turn these
 scores into calibrated confidence estimates.
