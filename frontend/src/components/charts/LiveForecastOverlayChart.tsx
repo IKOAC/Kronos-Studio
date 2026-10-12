@@ -27,6 +27,10 @@ type CandleSeriesUpdater = {
   update: (bar: CandlestickData<UTCTimestamp>) => void;
 };
 
+type VolumeSeriesUpdater = {
+  update: (bar: HistogramData<UTCTimestamp>) => void;
+};
+
 const toChartTime = (value: string): UTCTimestamp => {
   // Backend Binance timestamps are naive ISO strings representing UTC. Treat
   // those as UTC too, so historical candles line up with UTC WebSocket times.
@@ -46,6 +50,7 @@ export default function LiveForecastOverlayChart({
 }: LiveForecastOverlayChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const candleSeriesRef = useRef<CandleSeriesUpdater | null>(null);
+  const volumeSeriesRef = useRef<VolumeSeriesUpdater | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("connecting");
 
   useEffect(() => {
@@ -153,6 +158,7 @@ export default function LiveForecastOverlayChart({
           })
         )
       );
+      volumeSeriesRef.current = volume;
       chart.priceScale("volume").applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } });
     }
 
@@ -170,6 +176,7 @@ export default function LiveForecastOverlayChart({
       resizeObserver.disconnect();
       chart.remove();
       candleSeriesRef.current = null;
+      volumeSeriesRef.current = null;
     };
   }, [data, showVolume]);
 
@@ -202,14 +209,15 @@ export default function LiveForecastOverlayChart({
           const high = Number(kline.h);
           const low = Number(kline.l);
           const close = Number(kline.c);
-          if (![open, high, low, close].every(Number.isFinite)) return;
+          const volume = Number(kline.v);
+          if (![open, high, low, close, volume].every(Number.isFinite)) return;
 
-          series.update({
-            time: Math.floor(Number(kline.t) / 1000) as UTCTimestamp,
-            open,
-            high,
-            low,
-            close
+          const time = Math.floor(Number(kline.t) / 1000) as UTCTimestamp;
+          series.update({ time, open, high, low, close });
+          volumeSeriesRef.current?.update({
+            time,
+            value: volume,
+            color: close >= open ? "rgba(16, 185, 129, 0.28)" : "rgba(239, 68, 68, 0.28)"
           });
         } catch {
           // Ignore malformed stream messages; a later kline update can recover.
