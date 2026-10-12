@@ -73,6 +73,20 @@ class UploadedDataFileResponse(BaseModel):
     columns: list[str]
 
 
+class ModelComparison(BaseModel):
+    """One model's forecast and cross-model directional agreement."""
+
+    model_name: ModelName
+    model: AvailableModel
+    prediction: list[CandleRecord]
+    direction: Literal["up", "down", "flat"]
+    predicted_change_pct: float
+    confidence_score: float = Field(ge=0, le=100)
+    confidence_label: Literal["Low agreement", "Moderate agreement", "High agreement"]
+    sample_count: int = Field(ge=1)
+    direction_counts: dict[str, int]
+
+
 class PricePredictionResponse(BaseModel):
     """Prediction output with source history and future candles."""
 
@@ -84,3 +98,4 @@ class PricePredictionResponse(BaseModel):
     history: list[CandleRecord]
     future_timestamps: list[str]
     prediction: list[CandleRecord]
+    model_comparisons: list[ModelComparison] = Field(default_factory=list)
