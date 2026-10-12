@@ -57,7 +57,7 @@ const DataSelector = () => {
       <div className='grid gap-1'>
         <LabelWithTooltip label='Device' description={fieldDescriptions.device} />
         <Combobox
-          items={devices}
+          items={params.selected_models.some((name) => !name.startsWith("kronos-")) ? devices.filter((device) => device !== "mps") : devices}
           value={params.device}
           onValueChange={(value) => setParams({ device: value as z.infer<typeof DeviceEnum> })}
         >
@@ -205,7 +205,7 @@ const DataSelector = () => {
       {mode === "single" && (
         <div className='flex items-center gap-2 pt-3 pb-1'>
           <div className='h-px flex-1 bg-muted-foreground/20' />
-          <span className='text-xs font-medium text-muted-foreground uppercase tracking-wider'>Sampling</span>
+          <span className='text-xs font-medium text-muted-foreground uppercase tracking-wider'>Sampling · Kronos only</span>
           <div className='h-px flex-1 bg-muted-foreground/20' />
         </div>
       )}
