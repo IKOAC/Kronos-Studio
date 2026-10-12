@@ -168,7 +168,6 @@ class BatchPricePredictionService:
             }
 
             results.append(result)
-            results.append(result)
         return results
 
         # return {
