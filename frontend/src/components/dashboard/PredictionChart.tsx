@@ -41,7 +41,7 @@ const PredictionChart = forwardRef<HTMLDivElement, PredictionChartProps>(({ data
         <div className='flex flex-wrap items-center gap-3'>
           <div className='flex items-center gap-2' title={canUseLiveOverlay ? "Stream live Binance candles behind all three forecast lines" : "Live overlay currently supports Binance predictions"}>
             <Switch
-              checked={showLiveOverlay}
+              checked={showLiveOverlay && canUseLiveOverlay}
               onCheckedChange={(checked) => setShowLiveOverlay(checked && canUseLiveOverlay)}
               disabled={!canUseLiveOverlay}
               className='cursor-pointer'
