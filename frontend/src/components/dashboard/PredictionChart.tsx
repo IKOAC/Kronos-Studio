@@ -17,6 +17,7 @@ const PredictionChart = forwardRef<HTMLDivElement, PredictionChartProps>(({ data
   const setShowVolume = useChartUIStore((state) => state.setShowVolume);
   const setChartType = useChartUIStore((state) => state.setChartType);
   const [showLiveOverlay, setShowLiveOverlay] = useState(false);
+  const closeOnly = data.model.output_type === "close";
   const canUseLiveOverlay = data.request.data_source === "binance";
 
   return (
@@ -24,11 +25,11 @@ const PredictionChart = forwardRef<HTMLDivElement, PredictionChartProps>(({ data
       <div className='flex items-center justify-between gap-3 pb-2'>
         {!showLiveOverlay && (
           <Tabs
-            value={chartType}
+            value={closeOnly ? "line" : chartType}
             onValueChange={(value) => setChartType(value === "candlestick" ? "candlestick" : "line")}
           >
             <TabsList>
-              <TabsTrigger value='candlestick' className='px-3 cursor-pointer'>
+              <TabsTrigger disabled={closeOnly} value='candlestick' className='px-3 cursor-pointer'>
                 Candles
               </TabsTrigger>
               <TabsTrigger value='line' className='px-3 cursor-pointer'>
@@ -39,9 +40,9 @@ const PredictionChart = forwardRef<HTMLDivElement, PredictionChartProps>(({ data
         )}
 
         <div className='flex flex-wrap items-center gap-3'>
-          <div className='flex items-center gap-2' title={canUseLiveOverlay ? "Stream live Binance candles behind all three forecast lines" : "Live overlay currently supports Binance predictions"}>
+          <div className='flex items-center gap-2' title={canUseLiveOverlay ? "Stream live Binance candles behind the selected forecast lines" : "Live overlay currently supports Binance predictions"}>
             <Switch
-              checked={showLiveOverlay && canUseLiveOverlay}
+              checked={showLiveOverlay}
               onCheckedChange={(checked) => setShowLiveOverlay(checked && canUseLiveOverlay)}
               disabled={!canUseLiveOverlay}
               className='cursor-pointer'
@@ -54,10 +55,11 @@ const PredictionChart = forwardRef<HTMLDivElement, PredictionChartProps>(({ data
           </div>
         </div>
       </div>
+      {closeOnly && <p className='pb-2 text-xs text-muted-foreground'>{data.model.name} forecasts closing prices. Candle highs, lows and volume are not predicted.</p>}
       <div className='min-h-0 flex-1'>
         {showLiveOverlay && canUseLiveOverlay ? (
           <LiveForecastOverlayChart data={data} showVolume={showVolume} />
-        ) : chartType === "candlestick" ? (
+        ) : chartType === "candlestick" && !closeOnly ? (
           <TradingViewCandlestickChart data={data} showVolume={showVolume} />
         ) : (
           <PriceChart data={data} showVolume={showVolume} />
