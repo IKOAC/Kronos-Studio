@@ -8,6 +8,7 @@ if str(REPO_ROOT) not in sys.path:
 from model import Kronos, KronosPredictor, KronosTokenizer
 
 from constants.available_models import AVAILABLE_MODELS
+from services.prediction_service.adapters import load_adapter
 
 
 class KronosPredictionService:
@@ -27,7 +28,7 @@ class KronosPredictionService:
         self.predictor: KronosPredictor | None = None
         self.set_model(model_name)
 
-    def set_model(self, model_name: str):
+    def set_model(self, model_name: str, model_id: str | None = None):
         """Select a Kronos model configuration and clear any loaded predictor."""
         if model_name not in AVAILABLE_MODELS:
             available = ", ".join(AVAILABLE_MODELS.keys())
@@ -37,7 +38,8 @@ class KronosPredictionService:
 
         model_config = AVAILABLE_MODELS[model_name]
         self.model_key = model_name
-        self.model_name = model_config["model_id"]
+        self.model_name = model_id or model_config["model_id"]
+        self.adapter = model_config["adapter"]
         self.tokenizer_name = model_config["tokenizer_id"]
         self.max_context = model_config["context_length"]
         self.predictor = None
@@ -47,16 +49,19 @@ class KronosPredictionService:
         self.device = device
         self.predictor = None
 
-    def configure(self, model_name: str | None = None, device: str | None = None):
+    def configure(self, model_name: str | None = None, device: str | None = None, model_id: str | None = None):
         """Update model and/or device settings before the next prediction."""
         if model_name is not None:
-            self.set_model(model_name)
+            self.set_model(model_name, model_id)
         if device is not None:
             self.set_device(device)
         return self
 
     def load(self):
         """Load the tokenizer, model, and predictor for the current settings."""
+        if self.adapter != "kronos":
+            self.predictor = load_adapter(self.adapter, self.model_name, self.device)
+            return self.predictor
         tokenizer = KronosTokenizer.from_pretrained(self.tokenizer_name)
         model = Kronos.from_pretrained(self.model_name)
 
