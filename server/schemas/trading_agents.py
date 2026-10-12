@@ -20,7 +20,7 @@ class AgentReview(BaseModel):
 
 class AgentRunStats(BaseModel):
     profile: Literal["snapshot_debate_v1"] = "snapshot_debate_v1"
-    requests_used: int = Field(ge=0, le=3)
+    requests_used: int = Field(ge=0, le=9)
     tokens_used: int = Field(ge=0)
     elapsed_ms: float = Field(ge=0)
     reserved_tokens: int = Field(gt=0)

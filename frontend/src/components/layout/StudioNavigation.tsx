@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowDownRight, ArrowUpRight, ChartNoAxesCombined, Layers3, Radar } from "lucide-react";
 
 type StudioNavigationProps = {
-  active: "workspace" | "archive";
+  active: "workspace" | "archive" | "analysis";
 };
 
 const linkBase = "group flex min-h-12 items-center justify-between border-l-2 px-4 text-[12px] font-semibold tracking-[0.02em] transition-colors duration-150 focus-visible:outline-offset-[-3px]";
@@ -33,16 +33,17 @@ export default function StudioNavigation({ active }: StudioNavigationProps) {
             <span className="flex items-center gap-3"><Layers3 size={16} strokeWidth={1.5} /> Saved research</span>
             <ArrowUpRight size={14} strokeWidth={1.5} className="text-muted-foreground" />
           </Link>
-          <Link href="/#ai-analysis" className={linkBase + " " + inactiveClass}>
+          <Link href="/ai-analysis" aria-current={active === "analysis" ? "page" : undefined} className={linkBase + " " + (active === "analysis" ? activeClass : inactiveClass)}>
             <span className="flex items-center gap-3"><Radar size={16} strokeWidth={1.5} /> AI analysis</span>
             <ArrowDownRight size={14} strokeWidth={1.5} />
           </Link>
-          <p className="terminal-mono px-6 pt-2 text-[10px] leading-relaxed text-muted-foreground">Available after a forecast. Runs on click.</p>
+          <p className="terminal-mono px-6 pt-2 text-[10px] leading-relaxed text-muted-foreground">Independent market analysis. Runs on click.</p>
         </nav>
 
         <div className="flex items-center gap-2 lg:hidden">
           <Link href="/" className={"terminal-link px-2 py-2 " + (active === "workspace" ? "text-[#FF3D00]" : "text-muted-foreground")}>Studio</Link>
           <Link href="/saved-results" className={"terminal-link px-2 py-2 " + (active === "archive" ? "text-[#FF3D00]" : "text-muted-foreground")}>Archive</Link>
+          <Link href="/ai-analysis" className={"terminal-link px-2 py-2 " + (active === "analysis" ? "text-[#FF3D00]" : "text-muted-foreground")}>AI</Link>
         </div>
 
         <div className="hidden lg:mt-[min(18vh,220px)] lg:block lg:border-t lg:border-border lg:px-6 lg:py-8">

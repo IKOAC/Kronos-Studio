@@ -252,7 +252,8 @@ class GroqAnalysisService:
             "do not introduce information absent from the evidence. "
             "Supporting and conflicting identifiers must each be a subset of available "
             "evidence keys, with no duplicates and no overlap. "
-            "If forecasts disagree or data are insufficient, explicitly acknowledge uncertainty. "
+            "Forecasts are optional. When no forecasts are supplied, assess the technical evidence alone; do not request predictions or imply forecast agreement. "
+            "If supplied forecasts disagree or data are insufficient, explicitly acknowledge uncertainty. "
             "Keep the summary under two hundred twenty characters, using at most two short sentences. Use at most two distinct supporting and two distinct conflicting evidence IDs, with no overlap. List no more than three concise limitations. Do not write any digits in the summary or limitations. Return only the required JSON fields."
         )
         body = json.dumps(context, separators=(",", ":"), ensure_ascii=True)
@@ -275,6 +276,12 @@ class GroqAnalysisService:
             "Portfolio holdings and execution conditions were not supplied.",
             "Technical indicators can conflict with model forecasts.",
         ]
+        if metrics.forecast is None:
+            schema["properties"]["limitations"]["items"]["enum"] = [
+                value
+                for value in schema["properties"]["limitations"]["items"]["enum"]
+                if "forecast" not in value.lower()
+            ]
         schema["properties"]["limitations"][
             "description"
         ] = "Choose at most three applicable limitations."
@@ -397,7 +404,14 @@ class GroqAnalysisService:
             ):
                 raise ValueError("Overlapping evidence allocation.")
             return findings
-        except (KeyError, IndexError, ValueError, TypeError, ValidationError) as exc:
+        except (
+            KeyError,
+            IndexError,
+            AttributeError,
+            ValueError,
+            TypeError,
+            ValidationError,
+        ) as exc:
             raise GroqAnalysisError(
                 502,
                 "GROQ_INVALID_OUTPUT",
@@ -416,12 +430,14 @@ class GroqAnalysisService:
         return {
             "symbol": request.symbol,
             "interval": request.interval,
-            "provider": "groq",
+            "provider": getattr(session, "provider", "groq"),
             "model": GROQ_MODEL,
             "metrics": metrics,
             "findings": findings,
             "forecast_consensus": self._consensus(metrics),
             "quota": quota,
+            "providers_used": getattr(session, "providers_used", ["groq"]),
+            "provider_attempts": getattr(session, "attempts", []),
         }
 
 

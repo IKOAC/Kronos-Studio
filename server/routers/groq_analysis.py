@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 
 from schemas.groq_analysis import GroqAnalysisRequest, GroqAnalysisResponse, GroqQuota
 from services.groq_analysis import GroqAnalysisError, GroqAnalysisService
+from services.ai_providers import ProviderAnalysisService
 
 router = APIRouter()
 
@@ -38,7 +39,7 @@ def require_local_client(request: Request) -> None:
 
 
 def _service() -> GroqAnalysisService:
-    return GroqAnalysisService()
+    return ProviderAnalysisService()
 
 
 @router.get(

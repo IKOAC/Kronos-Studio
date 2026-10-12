@@ -60,13 +60,13 @@ const TradeMetricsSchema = z.object({
 
 const QuotaSchema = z.object({
   day_utc: z.string(),
-  token_limit_assumed: z.number().positive(),
+  token_limit_assumed: z.number().positive().nullable(),
   tokens_observed: z.number().nonnegative(),
-  token_percent_observed: finite,
-  requests_limit: z.number().positive(),
+  token_percent_observed: finite.nullable(),
+  requests_limit: z.number().positive().nullable(),
   requests_used: z.number().nonnegative(),
-  requests_percent_used: finite,
-  usage_percent: finite,
+  requests_percent_used: finite.nullable(),
+  usage_percent: finite.nullable(),
   cap_percent: finite,
   pending_5pct_alerts: z.array(z.number().int()),
   token_tracking_scope: z.literal("locally_recorded")
@@ -75,7 +75,7 @@ const QuotaSchema = z.object({
 export const GroqAnalysisResponseSchema = z.object({
   symbol: z.string(),
   interval: z.string(),
-  provider: z.literal("groq"),
+  provider: z.enum(["groq", "routeway", "openrouter"]),
   model: z.literal("openai/gpt-oss-120b"),
   metrics: z.object({
     technical: TechnicalMetricsSchema,
@@ -89,7 +89,10 @@ export const GroqAnalysisResponseSchema = z.object({
     limitations: z.array(z.string())
   }),
   forecast_consensus: z.enum(["up", "down", "flat", "mixed", "insufficient"]),
-  quota: QuotaSchema
+  quota: QuotaSchema,
+  providers_used: z.array(z.enum(["groq", "routeway", "openrouter"])).default([]),
+  provider_attempts: z.array(z.object({provider: z.enum(["groq", "routeway", "openrouter"]), http_status: z.number().int(), status: z.enum(["succeeded", "exhausted", "unavailable", "model_mismatch"])})).default([]),
+  market_data: z.object({data_source: z.enum(["binance", "yfinance"]), candles: z.number().int(), first_timestamp: z.string(), last_timestamp: z.string(), retrieved_at_utc: z.string()}).nullable().optional(),
 });
 
 export const TradingAgentsResponseSchema = GroqAnalysisResponseSchema.extend({
@@ -100,7 +103,7 @@ export const TradingAgentsResponseSchema = GroqAnalysisResponseSchema.extend({
   })).length(3),
   run_stats: z.object({
     profile: z.literal("snapshot_debate_v1"),
-    requests_used: z.number().int().min(0).max(3),
+    requests_used: z.number().int().min(0).max(9),
     tokens_used: z.number().int().nonnegative(),
     elapsed_ms: finite.nonnegative(),
     reserved_tokens: z.number().int().positive(),
@@ -155,3 +158,24 @@ export function buildGroqPayload(result: PricePredictionResponse) {
     forecasts,
   };
 }
+
+export const AIProvidersSchema = z.object({
+  model: z.literal("openai/gpt-oss-120b"),
+  fallback_order: z.array(z.enum(["groq", "routeway", "openrouter"])),
+  providers: z.array(z.object({
+    provider: z.enum(["groq", "routeway", "openrouter"]),
+    model: z.enum(["openai/gpt-oss-120b", "gpt-oss-120b"]),
+    configured: z.boolean(),
+    status: z.enum(["ready", "not_configured", "quota_exhausted", "cooldown", "tracker_unavailable"]),
+    quota: QuotaSchema.nullable(),
+  })),
+});
+export type AIProviders = z.infer<typeof AIProvidersSchema>;
+export type MarketAnalysisInput = {
+  symbol: string;
+  interval: "1m" | "5m" | "15m" | "30m" | "1h" | "4h" | "1d" | "1w";
+  lookback: number;
+  data_source: "binance" | "yfinance";
+  period: "1mo" | "3mo" | "1y" | "2y" | "5y" | "max";
+  mode: "single" | "agents";
+};

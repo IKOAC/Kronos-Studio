@@ -61,7 +61,9 @@ class MeteredResearchLLM:
 
 class TradingAgentsService:
     def __init__(self, groq: GroqAnalysisService | None = None):
-        self.groq = groq or GroqAnalysisService()
+        from services.ai_providers import ProviderAnalysisService
+
+        self.groq = groq or ProviderAnalysisService()
 
     def analyze(self, request: TradingAgentsRequest) -> dict:
         started = time.perf_counter()
@@ -121,7 +123,7 @@ class TradingAgentsService:
         return {
             "symbol": request.symbol,
             "interval": request.interval,
-            "provider": "groq",
+            "provider": getattr(session, "provider", "groq"),
             "model": "openai/gpt-oss-120b",
             "metrics": metrics,
             "findings": reviews[-1].findings,
@@ -130,4 +132,6 @@ class TradingAgentsService:
             "snapshot_id": snapshot_id,
             "agents": reviews,
             "run_stats": stats,
+            "providers_used": getattr(session, "providers_used", ["groq"]),
+            "provider_attempts": getattr(session, "attempts", []),
         }

@@ -7,14 +7,14 @@ Two **read-only, loopback-only** API routes are registered:
 - `GET /api/analysis/groq/usage` — returns recorded token/request usage and pending 5% alerts without calling Groq.
 - `POST /api/analysis/groq` — validates completed OHLCV data, executes the local deterministic engine, submits a compact **calculated metrics snapshot** to Groq's `openai/gpt-oss-120b`, validates the structured response, and returns both the original numerical metrics and bounded qualitative findings.
 
-The frontend offers manual analysis of an existing forecast. There is no automatic trade execution, additional market-data fetching or backtesting. The bounded TradingAgents research profile is documented in `docs/trading-agents.md`. `main` remains unchanged during development. The existing `POST /api/analysis/metrics` endpoint continues to work without Groq.
+The independent **AI analysis** dashboard at `/ai-analysis` loads completed market candles without running predictions. Both assessment and TradingAgents review use the fixed Groq → Routeway → OpenRouter chain documented in `docs/ai-providers.md`. The legacy snapshot routes remain available. There is no automatic trade execution or backtesting. The bounded TradingAgents research profile is documented in `docs/trading-agents.md`. `main` remains unchanged during development. The existing `POST /api/analysis/metrics` endpoint continues to work without Groq.
 
 ## Authentication and network boundary
 
 - The credential is loaded only by the backend from `~/.config/kronos-studio/groq_key`, a regular file owned by the current user with no group or other permissions, inside a private directory. **The key must never be copied to the repo, returned in a response, or included in logs or browser code.**
 - The API rejects non-loopback clients (IPv4/IPv6) and browser `Origin` values other than `http://localhost:3000`, `http://127.0.0.1:3000` and `http://[::1]:3000`.
 - These local-only controls reduce remote unauthorized API usage; local processes running as the logged-in user can still make requests. For public/network deployments, implement real user authentication and separate per-user budgets before enabling this API.
-- TLS peer verification is required, using the system certificate bundle. On the tested Mac `/etc/ssl/cert.pem` is used. The only outgoing host is `api.groq.com`. HTTP failures return fixed error codes without exposing provider response bodies.
+- TLS peer verification is required, using the system certificate bundle. On the tested Mac `/etc/ssl/cert.pem` is used. Provider calls use only the three fixed HTTPS endpoints documented in `docs/ai-providers.md`; redirects are refused. HTTP failures return fixed error codes without exposing provider response bodies.
 - If the tracker or credential cannot be opened securely, **no Groq request is issued**.
 
 ## Mandatory quota accounting
@@ -22,7 +22,7 @@ The frontend offers manual analysis of an existing forecast. There is no automat
 The existing private quota tracker at `~/.local/share/kronos-groq/monitor.py` is used directly. Existing usage logs and the configured hourly 5%-milestone notification are preserved. A versioned reference copy lives at `scripts/groq_usage_monitor.py`; the backend still loads the private installed copy. Both copies count every locally recorded attempt and use the larger of that count and the latest provider checkpoint plus subsequent uncertain attempts, so a decreasing or repeated provider header cannot erase local usage.
 
 - Preflight uses the latest recorded daily consumption, with an **80% hard ceiling** on both estimated daily token allowance and account request allowance.
-- The estimate reserves the complete UTF-8 serialized prompt bytes (conservative token proxy), maximum completion tokens, and additional headroom **before** allowing a request. The API returns HTTP 429 without calling Groq if the estimate would exceed the ceiling.
+- The estimate reserves the complete UTF-8 serialized prompt bytes (conservative token proxy), maximum completion tokens, and additional headroom **before** allowing a request. The chain skips Groq and immediately tries the next configured provider if this estimate would exceed the ceiling.
 - An OS file lock at `~/.local/share/kronos-groq/analysis.lock` serializes preflight and request recording across backend processes.
 - Provider-reported usage and request-rate-limit headers are appended to the **same** usage log. Missing provider usage is conservatively estimated. A transport failure is conservatively recorded as an unconfirmed request with estimated token usage.
 - The API response exposes `pending_5pct_alerts` but does not acknowledge them; the user's existing monitoring automation handles notifications and acknowledgment.
@@ -66,11 +66,9 @@ Run `cd server && uv run --no-sync pytest -q`. Integration tests use a fake tran
 
 ## Frontend
 
-The compact AI analysis panel appears below the chart and model comparison for the selected single or batch result. The API helper sends only historical OHLCV candles and each model's final forecast close; it never includes local file paths or credentials. A local CSV forecast must have a valid market symbol to be analyzed.
+AI analysis now has its own dashboard at `/ai-analysis`. The forecasting workspace and saved-results pages link to it. It needs a market symbol, source, interval and completed candle count; predictions and model weights are unnecessary. A single assessment or three-role review is started only by **Analyze market**. Initial load and **Refresh status** read local provider metadata without provider calls.
 
-Only clicking **Analyze with Groq** sends a POST. The panel never automatically retries. Its initial usage GET reads the local tracker without calling Groq. Loading blocks duplicate clicks; changing the selected result resets the panel and aborts stale browser responses. Aborting a browser request does not undo a provider call already accepted by the backend; those calls remain metered.
-
-The panel displays Python RSI, MACD, EMA, ATR, agreement and dispersion separately from Groq's qualitative findings. Evidence values come from the returned Python metrics. Null metrics display an em dash. Known API errors use fixed frontend messages; arbitrary provider responses and validation inputs are never displayed. Recorded usage is refreshed after failures as well as successful analyses; pending milestone alerts are never acknowledged by the UI.
+Loading blocks duplicate clicks. Changing settings resets findings and aborts stale browser responses. Aborting a browser request does not undo a provider call already accepted by the backend; those calls remain metered. Python metrics and evidence are displayed separately from the qualitative assessment. Unknown provider allowances remain unknown. Errors use fixed frontend messages and do not echo provider bodies or validation inputs.
 
 Frontend checks: `npx tsc --noEmit`, `npm run lint`, `npm run build`.
 

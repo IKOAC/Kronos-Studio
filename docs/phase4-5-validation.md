@@ -52,3 +52,7 @@ python scripts/validate_analysis_snapshot.py --single-file result.json --batch-f
 ```
 
 The TradingAgents implementation and pinned upstream/license boundary are documented in `docs/trading-agents.md`.
+
+## Subsequent independent dashboard update
+
+The forecast-bound panel used in the historical benchmark above has been replaced by `/ai-analysis`. The current shared service pins all providers to GPT-OSS-120B and switches immediately rather than pacing for refill. Three research turns remain bounded, with at most nine attempts across the three providers. See `docs/ai-providers.md` for the current implementation and validation boundary.

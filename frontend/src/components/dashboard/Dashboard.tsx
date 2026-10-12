@@ -6,7 +6,6 @@ import { Combobox, ComboboxInput, ComboboxContent, ComboboxList, ComboboxItem } 
 import InfoPanel from "./InfoPanel";
 import PredictionChart from "./PredictionChart";
 import ModelComparisonPanel from "./ModelComparisonPanel";
-import GroqAnalysisPanel from "./GroqAnalysisPanel";
 import DownloadActions from "./DownloadActions";
 import SaveResultAction from "./SaveResultAction";
 import { usePricePredictionStore } from "@/stores/pricePredictionStore";
@@ -138,7 +137,6 @@ const Dashboard = () => {
               <PredictionChart ref={chartRef} data={displayResult} />
             </div>
             <ModelComparisonPanel comparisons={displayResult.model_comparisons ?? []} />
-            <GroqAnalysisPanel result={displayResult} />
           </div>
         ) : (
           <div className="relative flex min-h-[510px] flex-col items-center justify-center overflow-hidden border border-border bg-card px-6 text-center">

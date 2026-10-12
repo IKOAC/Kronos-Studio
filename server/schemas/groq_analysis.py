@@ -78,13 +78,13 @@ class GroqFindings(BaseModel):
 
 class GroqQuota(BaseModel):
     day_utc: str
-    token_limit_assumed: int
+    token_limit_assumed: int | None
     tokens_observed: int
-    token_percent_observed: float
-    requests_limit: int
+    token_percent_observed: float | None
+    requests_limit: int | None
     requests_used: int
-    requests_percent_used: float
-    usage_percent: float
+    requests_percent_used: float | None
+    usage_percent: float | None
     cap_percent: float
     pending_5pct_alerts: list[int]
     token_tracking_scope: Literal["locally_recorded"] = "locally_recorded"
@@ -93,9 +93,14 @@ class GroqQuota(BaseModel):
 class GroqAnalysisResponse(BaseModel):
     symbol: str
     interval: str
-    provider: Literal["groq"] = "groq"
+    provider: Literal["groq", "routeway", "openrouter"] = "groq"
     model: Literal["openai/gpt-oss-120b"] = GROQ_MODEL
     metrics: FinancialAnalysisResponse
     findings: GroqFindings
     forecast_consensus: Literal["up", "down", "flat", "mixed", "insufficient"]
     quota: GroqQuota
+    providers_used: list[Literal["groq", "routeway", "openrouter"]] = Field(
+        default_factory=list
+    )
+    provider_attempts: list[dict] = Field(default_factory=list)
+    market_data: dict | None = None

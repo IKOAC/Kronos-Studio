@@ -1,17 +1,22 @@
 import { endpoint } from "@/utils/handleAPI";
 import {
-  buildGroqPayload, GroqAnalysisResponseSchema, GroqQuotaSchema, TradingAgentsResponseSchema,
+  buildGroqPayload, GroqAnalysisResponseSchema, GroqQuotaSchema, TradingAgentsResponseSchema, AIProvidersSchema,
 } from "@/schemas/groqAnalysisSchema";
+import type { MarketAnalysisInput } from "@/schemas/groqAnalysisSchema";
 import type { PricePredictionResponse } from "@/schemas/predictionSchema";
 
 const messages: Record<string, string> = {
+  ALL_PROVIDERS_UNAVAILABLE: "All configured OSS-120B providers are unavailable or exhausted. Check provider status below.",
+  PROVIDER_NOT_CONFIGURED: "The provider connection is not configured in the backend.",
+  MODEL_NOT_ALLOWED: "The provider did not return the required OSS-120B model.",
+  MARKET_DATA_UNAVAILABLE: "Completed market data could not be loaded. Check the source, symbol and history period.",
   GROQ_DAILY_CAP: "The analysis would exceed the daily usage ceiling.",
-  GROQ_RATE_LIMITED: "Groq is rate-limiting requests. Try again later.",
+  GROQ_RATE_LIMITED: "The configured providers are rate-limiting requests. Try again later.",
   GROQ_NOT_CONFIGURED: "The backend Groq credential is not configured.",
   TRACKER_UNAVAILABLE: "Quota tracking is unavailable. Analysis is blocked.",
-  GROQ_INVALID_OUTPUT: "Groq returned an unsupported analysis. Usage was recorded.",
+  GROQ_INVALID_OUTPUT: "The provider returned an unsupported analysis. Usage was recorded.",
   GROQ_TRANSPORT_ERROR: "Groq did not return a usable response. The attempt was recorded.",
-  GROQ_UPSTREAM_ERROR: "Groq could not complete the analysis.",
+  GROQ_UPSTREAM_ERROR: "The provider could not complete the analysis.",
   AGENT_RUN_LIMIT: "The TradingAgents review reached its request limit.",
   AGENT_METRICS_CHANGED: "The research evidence failed its integrity check.",
   ANALYSIS_TOO_LARGE: "The analysis snapshot is too large.",
@@ -64,4 +69,21 @@ export function analyzeWithGroq(result: PricePredictionResponse, signal?: AbortS
 
 export function analyzeWithTradingAgents(result: PricePredictionResponse, signal?: AbortSignal) {
   return requestAnalysis(result, "/analysis/trading-agents", TradingAgentsResponseSchema, signal);
+}
+
+export async function getAIProviders(signal?: AbortSignal) {
+  const response = await fetch(endpoint("/analysis/providers"), { cache: "no-store", signal });
+  return readResponse(response, AIProvidersSchema);
+}
+
+export async function analyzeMarket(input: MarketAnalysisInput, signal?: AbortSignal) {
+  const body = { ...input, symbol: input.symbol.trim().toUpperCase() };
+  const response = await fetch(endpoint("/analysis/market"), {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body), cache: "no-store", signal,
+  });
+  const schema = input.mode === "agents" ? TradingAgentsResponseSchema : GroqAnalysisResponseSchema;
+  const result = await readResponse(response, schema);
+  if (result.symbol !== body.symbol || result.interval !== body.interval) throw new Error("The analysis does not match the selected market.");
+  return result;
 }
