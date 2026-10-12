@@ -25,44 +25,54 @@ class PricePredictionService:
         """Fetch selected data, run the selected model, and return JSON-safe output."""
         prepared_data = self._load_data(request)
 
-        self.prediction_service.configure(
-            model_name=request.model_name,
-            device=request.device,
-        )
-
+        # Run every available model. The selected model remains the primary chart forecast.
+        model_predictions = {}
+        active_model_name = request.model_name
         try:
-            prediction_df = self.prediction_service.predict(
-                df=prepared_data["df"],
-                x_timestamp=prepared_data["x_timestamp"],
-                y_timestamp=prepared_data["y_timestamp"],
-                pred_len=prepared_data["pred_len"],
-                temperature=request.temperature,
-                top_k=request.top_k,
-                top_p=request.top_p,
-                sample_count=request.sample_count,
-                verbose=request.verbose,
-            )
+            for active_model_name in AVAILABLE_MODELS:
+                self.prediction_service.configure(
+                    model_name=active_model_name,
+                    device=request.device,
+                )
+                model_predictions[active_model_name] = self.prediction_service.predict(
+                    df=prepared_data["df"],
+                    x_timestamp=prepared_data["x_timestamp"],
+                    y_timestamp=prepared_data["y_timestamp"],
+                    pred_len=prepared_data["pred_len"],
+                    temperature=request.temperature,
+                    top_k=request.top_k,
+                    top_p=request.top_p,
+                    sample_count=request.sample_count,
+                    verbose=request.verbose,
+                )
         except PredictionAPIError:
             raise
         except (OSError, FileNotFoundError) as exc:
             raise ModelLoadError(
-                "Could not load the selected Kronos model. Check model files or network access.",
-                details={"model_name": request.model_name, "device": request.device},
+                f"Could not load Kronos model '{active_model_name}'. Check model files or network access.",
+                details={"model_name": active_model_name, "device": request.device},
             ) from exc
         except RuntimeError as exc:
             raise PredictionRuntimeError(
-                "Prediction failed while running the model. Check the selected device and inputs.",
+                f"Prediction failed while running model '{active_model_name}'.",
                 details={
-                    "model_name": request.model_name,
+                    "model_name": active_model_name,
                     "device": request.device,
                     "reason": str(exc),
                 },
             ) from exc
         except Exception as exc:
             raise PredictionRuntimeError(
-                "Prediction failed unexpectedly while generating results.",
-                details={"model_name": request.model_name, "device": request.device},
+                f"Prediction failed unexpectedly for model '{active_model_name}'.",
+                details={"model_name": active_model_name, "device": request.device},
             ) from exc
+
+        prediction_df = model_predictions[request.model_name]
+        model_comparisons = self._build_model_comparisons(
+            model_predictions=model_predictions,
+            last_history_close=float(prepared_data["df"]["close"].iloc[-1]),
+            sample_count=request.sample_count,
+        )
 
         # Move prediction timestamps from the DataFrame index into the API response.
         prediction_df = prediction_df.reset_index(names="timestamps")
@@ -82,7 +92,60 @@ class PricePredictionService:
             "history": self._records_to_json(prepared_data["df"]),
             "future_timestamps": self._timestamps_to_json(prepared_data["y_timestamp"]),
             "prediction": self._records_to_json(prediction_df),
+            "model_comparisons": model_comparisons,
         }
+
+    def _build_model_comparisons(
+        self,
+        model_predictions: dict,
+        last_history_close: float,
+        sample_count: int,
+    ) -> list[dict]:
+        """Summarize forecasts and directional consensus; this is not accuracy probability."""
+        directions = {}
+        changes = {}
+        baseline = float(last_history_close)
+
+        for model_name, forecast_df in model_predictions.items():
+            final_close = float(forecast_df["close"].iloc[-1])
+            change_pct = ((final_close - baseline) / abs(baseline) * 100.0) if baseline != 0 else 0.0
+            if change_pct > 0.1:
+                direction = "up"
+            elif change_pct < -0.1:
+                direction = "down"
+            else:
+                direction = "flat"
+            directions[model_name] = direction
+            changes[model_name] = change_pct
+
+        direction_counts = {
+            direction: sum(1 for value in directions.values() if value == direction)
+            for direction in ("up", "down", "flat")
+        }
+        model_count = max(len(model_predictions), 1)
+        comparisons = []
+        for model_name, forecast_df in model_predictions.items():
+            direction = directions[model_name]
+            score = direction_counts[direction] / model_count * 100.0
+            if score >= 99.9:
+                label = "High agreement"
+            elif score >= 50.0:
+                label = "Moderate agreement"
+            else:
+                label = "Low agreement"
+            serializable_df = forecast_df.reset_index(names="timestamps")
+            comparisons.append({
+                "model_name": model_name,
+                "model": AVAILABLE_MODELS[model_name],
+                "prediction": self._records_to_json(serializable_df),
+                "direction": direction,
+                "predicted_change_pct": round(changes[model_name], 4),
+                "confidence_score": round(score, 1),
+                "confidence_label": label,
+                "sample_count": sample_count,
+                "direction_counts": direction_counts,
+            })
+        return comparisons
 
     def get_options(self):
         """Return values a client can show as selectable prediction options."""
