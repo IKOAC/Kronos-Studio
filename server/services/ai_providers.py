@@ -18,6 +18,7 @@ import urllib.error
 import urllib.request
 
 from schemas.groq_analysis import GROQ_MODEL, GroqQuota
+from services.ai_allowance import DEFAULT_REPORTER
 from services.groq_analysis import (
     GroqAnalysisError,
     GroqAnalysisService,
@@ -225,6 +226,7 @@ class ProviderAnalysisService(GroqAnalysisService):
         provider_transport=None,
         groq_tracker=None,
         lock_path=None,
+        allowance_reporter=None,
     ):
         super().__init__(tracker=groq_tracker, lock_path=lock_path)
         self.key_directory = key_directory or Path.home() / ".config" / "kronos-studio"
@@ -232,6 +234,7 @@ class ProviderAnalysisService(GroqAnalysisService):
             journal_root or Path.home() / ".local" / "share" / "kronos-ai"
         )
         self.provider_transport = provider_transport or self.send_provider
+        self.allowance_reporter = allowance_reporter or DEFAULT_REPORTER
 
     def key(self, provider):
         key = os.environ.get(provider.env, "").strip()
@@ -246,6 +249,31 @@ class ProviderAnalysisService(GroqAnalysisService):
         if len(key) < 20 or not key.isascii() or "\n" in key or "\r" in key:
             raise unavailable("PROVIDER_NOT_CONFIGURED")
         return key
+
+    def management_key(self, provider):
+        """Reporting credential only; never used for model inference."""
+        key = os.environ.get(provider.upper() + "_MANAGEMENT_KEY", "").strip()
+        if not key:
+            path = self.key_directory / (provider + "_management_key")
+            if not _private_directory(path.parent) or not _private_file(path):
+                return None
+            try:
+                key = path.read_text(encoding="ascii").strip()
+            except (OSError, UnicodeError):
+                return None
+        return (
+            key
+            if len(key) >= 20 and key.isascii() and "\n" not in key and "\r" not in key
+            else None
+        )
+
+    def cached_allowance(self, provider):
+        if provider == "groq":
+            return None
+        descriptor = next(p for p in PROVIDERS if p.name == provider)
+        return self.allowance_reporter.peek(
+            provider, self.key(descriptor), self.management_key(provider)
+        )
 
     def limits(self, provider):
         path = self.key_directory / "provider_limits.json"
@@ -280,8 +308,9 @@ class ProviderAnalysisService(GroqAnalysisService):
         for provider in PROVIDERS:
             configured = True
             quota = None
+            allowance = None
             try:
-                self.key(provider)
+                credential = self.key(provider)
             except GroqAnalysisError:
                 configured = False
             status = "not_configured" if not configured else "ready"
@@ -299,6 +328,19 @@ class ProviderAnalysisService(GroqAnalysisService):
             except GroqAnalysisError:
                 if configured:
                     status = "tracker_unavailable"
+            if configured and provider.name != "groq":
+                allowance = self.allowance_reporter.report(
+                    provider.name, credential, self.management_key(provider.name)
+                )
+                if status == "ready" and any(
+                    allowance.get(field) == 0
+                    for field in (
+                        "balance_remaining_usd",
+                        "spending_remaining_usd",
+                        "spending_limit_usd",
+                    )
+                ):
+                    status = "quota_exhausted"
             result.append(
                 {
                     "provider": provider.name,
@@ -306,6 +348,7 @@ class ProviderAnalysisService(GroqAnalysisService):
                     "configured": configured,
                     "status": status,
                     "quota": quota.model_dump() if quota else None,
+                    "allowance": allowance,
                 }
             )
         return {
@@ -401,6 +444,16 @@ class ProviderSession:
         return self.provider
 
     def budget(self, name, tokens, requests):
+        allowance = self.service.cached_allowance(name)
+        if allowance and any(
+            allowance.get(field) == 0
+            for field in (
+                "balance_remaining_usd",
+                "spending_remaining_usd",
+                "spending_limit_usd",
+            )
+        ):
+            return False
         quota = self.service.provider_quota(name)
         return not (
             (
@@ -479,6 +532,7 @@ class ProviderSession:
             self.tokens_used += self.service.journal.record(
                 name, usage, status, estimated
             )
+            self.service.allowance_reporter.invalidate(name)
             if name == "groq":
                 recorded_usage = (
                     usage

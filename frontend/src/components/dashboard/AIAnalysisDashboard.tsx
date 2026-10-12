@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { analyzeMarket, getAIProviders } from "@/lib/api/groqAnalysis";
 import type { AIProviders, GroqAnalysisResponse, TradingAgentsResponse, MarketAnalysisInput } from "@/schemas/groqAnalysisSchema";
 import AnalysisResults from "./AnalysisResults";
+import ProviderAllowance from "./ProviderAllowance";
 
 const selectClass = "h-10 w-full min-w-0 border border-border bg-background px-3 text-sm focus-visible:outline-2 focus-visible:outline-[#FF3D00]";
 const statusLabels = {ready:"Ready",not_configured:"Not connected",quota_exhausted:"Quota exhausted",cooldown:"Temporarily unavailable",tracker_unavailable:"Usage tracking unavailable"};
@@ -55,7 +56,7 @@ export default function AIAnalysisDashboard() {
         <label className="space-y-2 text-xs text-muted-foreground">Analysis mode<select aria-label="Analysis mode" className={selectClass} value={input.mode} onChange={e=>change({mode:e.target.value as MarketAnalysisInput["mode"]})}><option value="single">Market assessment</option><option value="agents">TradingAgents review</option></select></label>
       </div>
       <div className="mt-5 flex flex-wrap items-center justify-between gap-4 border-t border-border pt-5">
-        <p className="max-w-xl text-xs leading-relaxed text-muted-foreground">Analyze completed market candles directly. GPT-OSS-120B only, with automatic provider fallback. {input.mode==="agents"?"Three research turns.":"One assessment."}</p>
+        <p className="max-w-xl text-xs leading-relaxed text-muted-foreground">Fetch the latest completed candles when you run analysis. The forming candle is excluded. GPT-OSS-120B only, with automatic provider fallback. {input.mode==="agents"?"Three research turns.":"One assessment."}</p>
         <Button type="submit" disabled={loading}>{loading?"Analyzing…":"Analyze market"}</Button>
       </div>
     </form>
@@ -66,7 +67,8 @@ export default function AIAnalysisDashboard() {
         <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-sm font-semibold capitalize">{provider.provider}</h3><span className="text-[11px] text-muted-foreground">{statusLabels[provider.status]}</span></div>
         <p className="terminal-mono mt-3 break-words text-[10px] text-muted-foreground">GPT-OSS-120B</p>
         {provider.quota && <p className="terminal-mono mt-2 text-[11px] text-muted-foreground">{provider.quota.tokens_observed.toLocaleString()} recorded tokens · {provider.quota.requests_used} requests</p>}
-        <p className="mt-2 text-xs text-muted-foreground">{provider.quota?.usage_percent != null ? `${provider.quota.usage_percent.toFixed(2)}% recorded usage · ${provider.quota.cap_percent}% ceiling` : "Account allowance not reported."}</p>
+        <p className="mt-2 text-xs text-muted-foreground">{provider.quota?.usage_percent != null ? `${provider.quota.usage_percent.toFixed(2)}% recorded usage · ${provider.quota.cap_percent}% ceiling` : provider.allowance?.balance_status === "available" ? "Token totals are recorded locally." : "Token allowance not reported."}</p>
+        {provider.allowance && <ProviderAllowance allowance={provider.allowance} />}
       </article>)}</div> : <p className="text-xs text-muted-foreground">Loading provider status…</p>}
     </section>
     {loading && <p role="status" className="text-sm text-muted-foreground">Loading completed candles and reviewing the Python evidence…</p>}

@@ -66,7 +66,7 @@ Run `cd server && uv run --no-sync pytest -q`. Integration tests use a fake tran
 
 ## Frontend
 
-AI analysis now has its own dashboard at `/ai-analysis`. The forecasting workspace and saved-results pages link to it. It needs a market symbol, source, interval and completed candle count; predictions and model weights are unnecessary. A single assessment or three-role review is started only by **Analyze market**. Initial load and **Refresh status** read local provider metadata without provider calls.
+AI analysis now has its own dashboard at `/ai-analysis`. The forecasting workspace and saved-results pages link to it. It needs a market symbol, source, interval and completed candle count; predictions and model weights are unnecessary. A single assessment or three-role review is started only by **Analyze market**. Initial load and **Refresh status** read local provider metadata and cached read-only Routeway/OpenRouter allowance reports; cache misses may contact reporting endpoints, never model-generation endpoints. See `docs/ai-providers.md` for reporting credentials and cache behavior.
 
 Loading blocks duplicate clicks. Changing settings resets findings and aborts stale browser responses. Aborting a browser request does not undo a provider call already accepted by the backend; those calls remain metered. Python metrics and evidence are displayed separately from the qualitative assessment. Unknown provider allowances remain unknown. Errors use fixed frontend messages and do not echo provider bodies or validation inputs.
 

@@ -57,7 +57,9 @@ class MarketAnalysisService:
         for record in frame.to_dict("records"):
             rows.append(
                 {
-                    "timestamps": pd.Timestamp(record["timestamps"]).isoformat(),
+                    "timestamps": pd.to_datetime(
+                        record["timestamps"], utc=True
+                    ).isoformat(),
                     **{
                         key: float(record[key])
                         for key in ("open", "high", "low", "close", "volume")

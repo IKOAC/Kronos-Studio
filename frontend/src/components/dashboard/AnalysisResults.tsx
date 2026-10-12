@@ -43,7 +43,7 @@ export default function AnalysisResults({ analysis }: { analysis: GroqAnalysisRe
         <h2 id="assessment-heading" className="mt-2 text-lg font-bold">{"agents" in analysis ? "TradingAgents assessment" : "Market assessment"}</h2>
         <p className="terminal-mono mt-2 text-[11px] text-muted-foreground">GPT-OSS-120B · {analysis.providers_used.length ? analysis.providers_used.join(" → ") : analysis.provider}</p>
         <p className="mt-4 text-sm leading-relaxed" aria-live="polite">{analysis.findings.summary}</p>
-        {analysis.market_data && <p className="mt-3 break-words text-xs text-muted-foreground">{analysis.market_data.candles} completed candles · {analysis.market_data.data_source} · latest {analysis.market_data.last_timestamp}</p>}
+        {analysis.market_data && <p className="mt-3 break-words text-xs text-muted-foreground">{analysis.market_data.candles} completed candles · {analysis.market_data.data_source} · last candle opened {analysis.market_data.last_timestamp} · fetched {analysis.market_data.retrieved_at_utc}</p>}
       </div>
       {"agents" in analysis && <div className="space-y-3">
         <p className="terminal-mono text-[11px] text-muted-foreground">{analysis.run_stats.requests_used} provider requests · {analysis.run_stats.tokens_used.toLocaleString()} recorded tokens · {(analysis.run_stats.elapsed_ms / 1000).toFixed(2)}s</p>

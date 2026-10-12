@@ -7,6 +7,7 @@ from fastapi.encoders import jsonable_encoder
 from schemas.groq_analysis import GROQ_MODEL, GroqAnalysisRequest
 from schemas.trading_agents import TradingAgentsRequest
 from services.ai_providers import ProviderAnalysisService, PROVIDERS
+from services.ai_allowance import AllowanceReporter
 from services.groq_analysis import GroqAnalysisError
 from services.trading_agents import TradingAgentsService
 from test_groq_analysis import MockTracker, input_json, valid_response
@@ -40,6 +41,7 @@ def setup(tmp_path, monkeypatch):
         provider_transport=transport,
         groq_tracker=tracker,
         lock_path=tmp_path / "usage.lock",
+        allowance_reporter=AllowanceReporter(transport=lambda url, key: (503, {})),
     )
     return service, tracker, calls, secrets
 
@@ -206,7 +208,7 @@ def test_trading_agents_can_switch_provider_between_turns_without_changing_metri
     assert len(result["agents"]) == 3
 
 
-def test_provider_status_is_local_only_and_does_not_make_model_calls(setup):
+def test_provider_status_reporting_does_not_make_model_calls(setup):
     service, tracker, calls, secrets = setup
     status = service.statuses()
     assert calls == []

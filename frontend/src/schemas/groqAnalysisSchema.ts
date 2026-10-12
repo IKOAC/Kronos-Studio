@@ -159,6 +159,24 @@ export function buildGroqPayload(result: PricePredictionResponse) {
   };
 }
 
+const ProviderAllowanceSchema = z.object({
+  status: z.enum(["available", "partial", "permission_required", "unavailable"]),
+  balance_status: z.enum(["available", "permission_required", "unavailable"]),
+  key_status: z.enum(["available", "unavailable", "not_supported"]),
+  checked_at_utc: z.string(),
+  balance_remaining_usd: finite.nonnegative().nullable(),
+  account_credits_usd: finite.nonnegative().nullable(),
+  account_usage_usd: finite.nonnegative().nullable(),
+  spending_scope: z.enum(["key", "effective"]),
+  spending_limit_usd: finite.nonnegative().nullable(),
+  spending_used_usd: finite.nonnegative().nullable(),
+  spending_remaining_usd: finite.nonnegative().nullable(),
+  spending_percent: finite.nonnegative().nullable(),
+  limit_reset: z.enum(["daily", "weekly", "monthly"]).nullable(),
+  key_usage_daily_usd: finite.nonnegative().nullable(),
+});
+export type ProviderAllowance = z.infer<typeof ProviderAllowanceSchema>;
+
 export const AIProvidersSchema = z.object({
   model: z.literal("openai/gpt-oss-120b"),
   fallback_order: z.array(z.enum(["groq", "routeway", "openrouter"])),
@@ -168,6 +186,7 @@ export const AIProvidersSchema = z.object({
     configured: z.boolean(),
     status: z.enum(["ready", "not_configured", "quota_exhausted", "cooldown", "tracker_unavailable"]),
     quota: QuotaSchema.nullable(),
+    allowance: ProviderAllowanceSchema.nullable().optional(),
   })),
 });
 export type AIProviders = z.infer<typeof AIProvidersSchema>;

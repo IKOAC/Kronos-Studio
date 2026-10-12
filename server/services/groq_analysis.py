@@ -244,7 +244,7 @@ class GroqAnalysisService:
         system = (
             "You analyze an immutable numerical snapshot for read-only market research. "
             "The numerical calculations were performed by code and must not be altered. "
-            "This is neither live data nor an investment recommendation. "
+            "This snapshot uses supplied completed candles and does not update continuously. It is not an investment recommendation. "
             "Do not suggest BUY, SELL, orders, entries, stop losses, profit targets, "
             "probabilities of success, or claims of historical accuracy. "
             "Use only evidence identifiers supplied in the evidence object. "
@@ -272,7 +272,7 @@ class GroqAnalysisService:
             "Forecast agreement does not establish accuracy.",
             "Historical indicators do not guarantee future outcomes.",
             "News, sentiment, and fundamentals were not supplied.",
-            "This is a closed-candle snapshot rather than a live market assessment.",
+            "Latest completed candles are used; the forming candle is excluded.",
             "Portfolio holdings and execution conditions were not supplied.",
             "Technical indicators can conflict with model forecasts.",
         ]
