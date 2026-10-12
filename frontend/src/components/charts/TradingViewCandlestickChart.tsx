@@ -64,7 +64,11 @@ const TradingViewCandlestickChart = ({ data, showVolume = false }: TradingViewCa
       close: item.close
     }));
 
-    const predictionCandles: CandlestickData[] = data.prediction.map((item) => ({
+    const candlePredictions = data.prediction.filter(
+      (item): item is PricePredictionResponse["history"][number] =>
+        [item.open, item.high, item.low, item.volume, item.amount].every((value) => typeof value === "number")
+    );
+    const predictionCandles: CandlestickData[] = candlePredictions.map((item) => ({
       time: toChartTime(item.timestamps),
       open: item.open,
       high: item.high,
@@ -72,7 +76,7 @@ const TradingViewCandlestickChart = ({ data, showVolume = false }: TradingViewCa
       close: item.close
     }));
 
-    const volumeBars: HistogramData[] = [...data.history, ...data.prediction].map((item) => ({
+    const volumeBars: HistogramData[] = [...data.history, ...candlePredictions].map((item) => ({
       time: toChartTime(item.timestamps),
       value: item.volume,
       color: item.close >= item.open ? "rgba(16, 185, 129, 0.28)" : "rgba(239, 68, 68, 0.28)"
@@ -90,7 +94,7 @@ const TradingViewCandlestickChart = ({ data, showVolume = false }: TradingViewCa
         type: "History"
       });
     });
-    data.prediction.forEach((item) => {
+    candlePredictions.forEach((item) => {
       candlesByTime.set(toChartTime(item.timestamps), {
         time: item.timestamps,
         open: item.open,
