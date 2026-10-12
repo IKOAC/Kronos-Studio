@@ -1,9 +1,12 @@
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
+from huggingface_hub.utils import validate_repo_id
+
+from constants.available_models import DEFAULT_MODELS
 
 DataSource = Literal["binance", "yfinance", "local"]
-ModelName = Literal["kronos-mini", "kronos-small", "kronos-base"]
+ModelName = Literal["kronos-mini", "kronos-small", "kronos-base", "chronos-2", "timesfm-2.5", "fincast"]
 Device = Literal["cpu", "cuda:0", "mps"]
 
 
@@ -21,6 +24,8 @@ class PricePredictionRequest(BaseModel):
     pred_len: int = Field(default=120, ge=1)
     limit: int | None = Field(default=400, ge=1)
     model_name: ModelName = "kronos-mini"
+    selected_models: list[ModelName] | None = Field(default=None, min_length=1, max_length=6)
+    model_ids: dict[ModelName, str] = Field(default_factory=dict)
     device: Device = "cpu"
     temperature: float = Field(default=1.0, gt=0)
     top_k: int = Field(default=0, ge=0)
@@ -28,16 +33,37 @@ class PricePredictionRequest(BaseModel):
     sample_count: int = Field(default=1, ge=1)
     verbose: bool = False
 
+    @model_validator(mode="after")
+    def validate_models(self):
+        # Older clients omit selection and keep the original three-model behavior.
+        if self.selected_models is None:
+            self.selected_models = list(DEFAULT_MODELS) if self.model_name in DEFAULT_MODELS else [self.model_name]
+        if len(set(self.selected_models)) != len(self.selected_models):
+            raise ValueError("Choose each model only once.")
+        if self.model_name not in self.selected_models:
+            raise ValueError("The primary chart model must be included in selected_models.")
+        for key, value in self.model_ids.items():
+            if key not in self.selected_models:
+                raise ValueError("Hugging Face overrides must belong to selected models.")
+            validate_repo_id(value)
+            if "/" not in value:
+                raise ValueError("Use a Hugging Face ID in the form owner/model.")
+        return self
+
 
 class AvailableModel(BaseModel):
     """Metadata for one selectable Kronos model."""
 
     name: str
     model_id: str
-    tokenizer_id: str
+    tokenizer_id: str | None = None
     context_length: int
     params: str
     description: str
+    adapter: str = "kronos"
+    output_type: Literal["candles", "close"] = "candles"
+    devices: list[Device] = Field(default_factory=lambda: ["cpu", "cuda:0", "mps"])
+    max_horizon: int | None = None
 
 
 class CandleRecord(BaseModel):
@@ -63,6 +89,18 @@ class PredictionOptionsResponse(BaseModel):
     defaults: PricePredictionRequest
 
 
+class ForecastRecord(BaseModel):
+    """Forecasts may contain only a closing price; missing candles are not synthesized."""
+
+    timestamps: str
+    close: float
+    open: float | None = None
+    high: float | None = None
+    low: float | None = None
+    volume: float | None = None
+    amount: float | None = None
+
+
 class UploadedDataFileResponse(BaseModel):
     """Metadata for a CSV uploaded for local predictions."""
 
@@ -78,11 +116,11 @@ class ModelComparison(BaseModel):
 
     model_name: ModelName
     model: AvailableModel
-    prediction: list[CandleRecord]
+    prediction: list[ForecastRecord]
     direction: Literal["up", "down", "flat"]
     predicted_change_pct: float
     confidence_score: float = Field(ge=0, le=100)
-    confidence_label: Literal["Low agreement", "Moderate agreement", "High agreement"]
+    confidence_label: Literal["Low agreement", "Moderate agreement", "High agreement", "Not comparable"]
     sample_count: int = Field(ge=1)
     direction_counts: dict[str, int]
 
@@ -97,5 +135,5 @@ class PricePredictionResponse(BaseModel):
     prediction_start_timestamp: str
     history: list[CandleRecord]
     future_timestamps: list[str]
-    prediction: list[CandleRecord]
+    prediction: list[ForecastRecord]
     model_comparisons: list[ModelComparison] = Field(default_factory=list)
