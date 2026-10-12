@@ -22,7 +22,9 @@ class OHLCVDataService:
         limit: int | None = None,
     ):
         """Fetch OHLCV candles from Binance and return prediction-ready data."""
-        fetch_limit = limit or lookback
+        # Binance includes the candle currently forming. Ask for one extra row
+        # so excluding it still supplies the requested completed lookback.
+        fetch_limit = min((limit or lookback) + 1, 1000)
         params = urlencode(
             {
                 "symbol": symbol.upper(),
@@ -102,6 +104,10 @@ class OHLCVDataService:
             "ignore",
         ]
         df = pd.DataFrame(rows, columns=columns)
+        now_ms = int(pd.Timestamp.now(tz="UTC").timestamp() * 1000)
+        df = df[pd.to_numeric(df["close_time"], errors="coerce") < now_ms]
+        if df.empty:
+            raise DataNotFoundError("No completed Binance candles are available.", details={"data_source": "binance", "symbol": symbol})
         df["timestamps"] = pd.to_datetime(df["open_time"], unit="ms")
         df["amount"] = pd.to_numeric(df["quote_asset_volume"], errors="coerce")
 

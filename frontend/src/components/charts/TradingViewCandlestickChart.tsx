@@ -336,7 +336,7 @@ const TradingViewCandlestickChart = ({ data, showVolume = false }: TradingViewCa
       ref={shellRef}
       className={cn("relative flex size-full flex-col border bg-background", isFullscreen && "fixed inset-0 z-50 p-3")}
     >
-      <div className='flex min-h-10 items-center justify-between gap-3 border-b px-2 py-1.5'>
+      <div className='flex min-h-10 flex-wrap items-center justify-between gap-3 border-b px-2 py-1.5'>
         <div className='flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs h-[40px]'>
           <span className='font-medium'>{data.request.symbol ?? "Unknown"}</span>
           <span className='text-muted-foreground'>{data.request.interval}</span>
@@ -355,7 +355,7 @@ const TradingViewCandlestickChart = ({ data, showVolume = false }: TradingViewCa
           )}
         </div>
 
-        <div className='flex shrink-0 items-center gap-1'>
+        <div className='flex max-w-full flex-wrap items-center gap-1'>
           <Button variant='outline' size='icon-sm' onClick={fitContent} title='Fit chart'>
             <LocateFixed className='size-3.5' />
           </Button>
