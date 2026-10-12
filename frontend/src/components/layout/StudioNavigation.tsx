@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowDownRight, ArrowUpRight, ChartNoAxesCombined, Layers3, LockKeyhole, Radar } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, ChartNoAxesCombined, Layers3, Radar } from "lucide-react";
 
 type StudioNavigationProps = {
   active: "workspace" | "archive";
@@ -33,14 +33,11 @@ export default function StudioNavigation({ active }: StudioNavigationProps) {
             <span className="flex items-center gap-3"><Layers3 size={16} strokeWidth={1.5} /> Saved research</span>
             <ArrowUpRight size={14} strokeWidth={1.5} className="text-muted-foreground" />
           </Link>
-          <div className="mt-8 border-t border-border px-6 pt-7">
-            <span className="terminal-kicker">/ FUTURE WORKSPACE</span>
-          </div>
-          <div className="mt-4 flex min-h-12 items-center justify-between px-6 text-muted-foreground/60" aria-label="AI analysis planned, not yet available">
-            <span className="flex items-center gap-3 text-[12px]"><Radar size={16} strokeWidth={1.5} /> AI analysis</span>
-            <LockKeyhole size={13} strokeWidth={1.5} />
-          </div>
-          <p className="terminal-mono px-6 text-[10px] leading-relaxed text-muted-foreground/60">Reserved for a future release. No API calls.</p>
+          <Link href="/#ai-analysis" className={linkBase + " " + inactiveClass}>
+            <span className="flex items-center gap-3"><Radar size={16} strokeWidth={1.5} /> AI analysis</span>
+            <ArrowDownRight size={14} strokeWidth={1.5} />
+          </Link>
+          <p className="terminal-mono px-6 pt-2 text-[10px] leading-relaxed text-muted-foreground">Available after a forecast. Runs on click.</p>
         </nav>
 
         <div className="flex items-center gap-2 lg:hidden">
@@ -54,7 +51,7 @@ export default function StudioNavigation({ active }: StudioNavigationProps) {
             <span className="size-1.5 bg-[#FF3D00]" aria-hidden="true" />
             <span className="terminal-mono text-[11px] text-foreground">RESEARCH ONLY</span>
           </div>
-          <p className="mt-3 text-xs leading-relaxed text-muted-foreground">Forecasts are estimates. No trade execution or AI analysis is enabled.</p>
+          <p className="mt-3 text-xs leading-relaxed text-muted-foreground">Forecasts are estimates. AI analysis runs manually. Trade execution is disabled.</p>
           <div className="mt-8 flex items-center gap-2 border-t border-border pt-5 text-muted-foreground">
             <ArrowDownRight size={16} strokeWidth={1.5} />
             <span className="terminal-kicker !text-[9px]">EXPERIMENTAL / V2.0</span>
