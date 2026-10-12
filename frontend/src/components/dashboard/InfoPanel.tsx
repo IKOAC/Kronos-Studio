@@ -9,8 +9,12 @@ const getBatchMode = (modelName: string) => {
       return "Balanced";
     case "kronos-base":
       return "Quality";
+    case "chronos-2":
+    case "timesfm-2.5":
+    case "fincast":
+      return "Price forecast";
     default:
-      return "Unknown";
+      return "Forecast";
   }
 };
 
