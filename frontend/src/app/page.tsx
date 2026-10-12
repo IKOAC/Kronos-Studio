@@ -1,7 +1,6 @@
 import { HugeiconsIcon } from "@hugeicons/react";
 import { ChartCandlestickIcon } from "@hugeicons/core-free-icons";
 import Link from "next/link";
-import { endpoint } from "@/utils/handleAPI";
 import Controllers from "@/components/controllers/Controllers";
 import Dashboard from "@/components/dashboard/Dashboard";
 
