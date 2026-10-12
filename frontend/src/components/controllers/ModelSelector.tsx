@@ -37,15 +37,15 @@ export default function ModelSelector() {
   }
 
   return (
-    <details className="group w-full min-w-0 rounded-md border bg-background/30">
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-3 [&::-webkit-details-marker]:hidden">
+    <details className="group w-full min-w-0 border border-border bg-background">
+      <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 px-4 py-4 [&::-webkit-details-marker]:hidden">
         <span className="min-w-0">
-          <span className="block text-sm font-semibold">Choose models <span className="text-muted-foreground">({params.selected_models.length})</span></span>
-          <span className="block truncate text-xs text-muted-foreground">Primary chart: {primary}</span>
+          <span className="block text-sm font-bold uppercase tracking-[-0.02em]">Choose models <span className="text-muted-foreground">({params.selected_models.length})</span></span>
+          <span className="terminal-mono mt-1 block truncate text-[10px] text-muted-foreground">Primary chart: {primary}</span>
         </span>
         <ChevronDown className="size-4 shrink-0 transition-transform group-open:rotate-180" aria-hidden="true" />
       </summary>
-      <div className="space-y-3 border-t p-3">
+      <div className="space-y-4 border-t px-4 py-5">
         <p className="text-xs text-muted-foreground">Check the models to run, then choose your primary chart. New weights download on first use.</p>
         {isPending && <p className="text-xs" role="status">Loading models…</p>}
         {error && <div className="text-xs" role="alert">Could not load models. Check that the backend is running. <button type="button" className="underline" onClick={() => refetch()}>Retry</button></div>}
@@ -55,7 +55,7 @@ export default function ModelSelector() {
             if (!model) return null;
             const name = key as ModelName;
             const selected = params.selected_models.includes(name);
-            return <div key={name} className={`min-w-0 rounded border p-3 ${selected ? "border-primary/50 bg-muted/30" : "border-border"}`}>
+            return <div key={name} className={`min-w-0 border p-4 ${selected ? "border-[#FF3D00]/60 bg-[#FF3D00]/[0.04]" : "border-border"}`}>
               <div className="flex items-center justify-between gap-2">
                 <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
                   <input type="checkbox" checked={selected} onChange={() => toggleModel(name)} disabled={selected && params.selected_models.length === 1} className="size-4 accent-primary" />
@@ -73,7 +73,7 @@ export default function ModelSelector() {
                 <label htmlFor={`model-id-${name}`} className="block text-xs text-muted-foreground">Hugging Face ID</label>
                 <Input id={`model-id-${name}`} value={params.model_ids[name] ?? model.model_id} spellCheck={false}
                   onChange={(event) => setParams({ model_ids: { ...params.model_ids, [name]: event.target.value } })}
-                  className="h-8 w-full min-w-0 text-xs" />
+                  className="w-full min-w-0 text-xs" />
                 <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
                   <a href={`https://huggingface.co/${model.model_id}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 underline">Official checkpoint <ExternalLink className="size-3" /></a>
                   {params.model_ids[name] !== undefined && <button type="button" className="underline" onClick={() => {

@@ -21,18 +21,18 @@ const PredictionChart = forwardRef<HTMLDivElement, PredictionChartProps>(({ data
   const canUseLiveOverlay = data.request.data_source === "binance";
 
   return (
-    <div ref={ref} className='flex h-[540px] flex-col'>
-      <div className='flex items-center justify-between gap-3 pb-2'>
+    <div ref={ref} className='flex h-[520px] min-w-0 flex-col md:h-[590px]'>
+      <div className='flex flex-wrap items-center justify-between gap-4 border-b border-border pb-4'>
         {!showLiveOverlay && (
           <Tabs
             value={closeOnly ? "line" : chartType}
             onValueChange={(value) => setChartType(value === "candlestick" ? "candlestick" : "line")}
           >
-            <TabsList>
-              <TabsTrigger disabled={closeOnly} value='candlestick' className='px-3 cursor-pointer'>
+            <TabsList variant='line' className='bg-transparent'>
+              <TabsTrigger disabled={closeOnly} value='candlestick' className='min-h-10 cursor-pointer px-4 uppercase tracking-widest data-active:text-[#FF3D00] data-active:after:bg-[#FF3D00]'>
                 Candles
               </TabsTrigger>
-              <TabsTrigger value='line' className='px-3 cursor-pointer'>
+              <TabsTrigger value='line' className='min-h-10 cursor-pointer px-4 uppercase tracking-widest data-active:text-[#FF3D00] data-active:after:bg-[#FF3D00]'>
                 Line
               </TabsTrigger>
             </TabsList>
@@ -47,15 +47,15 @@ const PredictionChart = forwardRef<HTMLDivElement, PredictionChartProps>(({ data
               disabled={!canUseLiveOverlay}
               className='cursor-pointer'
             />
-            <span className='text-sm text-muted-foreground'>Live overlay</span>
+            <span className='terminal-kicker !text-[10px]'>Live overlay</span>
           </div>
           <div className='flex items-center gap-2'>
             <Switch checked={showVolume} onCheckedChange={setShowVolume} className='cursor-pointer' />
-            <span className='text-sm text-muted-foreground'>Volume</span>
+            <span className='terminal-kicker !text-[10px]'>Volume</span>
           </div>
         </div>
       </div>
-      {closeOnly && <p className='pb-2 text-xs text-muted-foreground'>{data.model.name} forecasts closing prices. Candle highs, lows and volume are not predicted.</p>}
+      {closeOnly && <p className='py-3 text-xs leading-relaxed text-muted-foreground'>{data.model.name} forecasts closing prices. Candle highs, lows and volume are not predicted.</p>}
       <div className='min-h-0 flex-1'>
         {showLiveOverlay && canUseLiveOverlay ? (
           <LiveForecastOverlayChart data={data} showVolume={showVolume} />

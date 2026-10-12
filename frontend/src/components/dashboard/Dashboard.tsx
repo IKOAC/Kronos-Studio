@@ -1,6 +1,5 @@
 "use client";
 import { useRef, useCallback } from "react";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Combobox, ComboboxInput, ComboboxContent, ComboboxList, ComboboxItem } from "@/components/ui/combobox";
 
@@ -66,126 +65,110 @@ const Dashboard = () => {
   );
 
   return (
-    <section className='size-full border'>
-      <Card className='size-full'>
-        <CardHeader>
-          <InfoPanel />
-        </CardHeader>
+    <section className="flex h-full min-w-0 flex-col">
+      <div className="border-b border-border px-5 pb-6 pt-7 sm:px-7">
+        <div className="flex items-center justify-between gap-3">
+          <span className="terminal-kicker"><span className="terminal-accent">02</span> / ANALYZE</span>
+          <span className="terminal-mono text-[11px] text-[#FF3D00]">[ OUTPUT ]</span>
+        </div>
+        <h3 className="terminal-heading mt-5 text-3xl sm:text-4xl">THE MODEL<br />VIEW<span className="terminal-accent">.</span></h3>
+        <p className="mt-4 max-w-xl text-sm leading-relaxed text-muted-foreground">
+          Historical candles against the projected path. Compare the evidence, not just the direction.
+        </p>
+      </div>
 
-        <CardContent className='flex-1'>
-          <div className='flex flex-col gap-1 h-full'>
-            <div className='flex items-center justify-between'>
-              <div className='flex flex-col gap-0'>
-                <h2 className='text-base font-semibold'>Prediction preview</h2>
-                <p className='text-sm/relaxed text-muted-foreground'>
-                  History candles transition into the forecast region.
-                </p>
-              </div>
+      <InfoPanel />
 
-              {/* Download actions — visible only when we have a result */}
-              {hasResult && displayResult && (
-                <div className='flex items-center gap-2'>
-                  <SaveResultAction result={displayResult} batchResults={batchResults} isBatch={isBatch} />
-                  <DownloadActions
-                    chartRef={chartRef}
-                    displayResult={displayResult}
-                    batchResults={batchResults}
-                    isBatch={isBatch}
-                    captureChart={captureChart}
-                  />
-                </div>
-              )}
+      <div className="flex min-w-0 flex-1 flex-col gap-5 px-5 py-6 sm:px-7">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="h-1.5 w-1.5 bg-[#FF3D00]" aria-hidden="true" />
+              <span className="terminal-kicker">PRICE ACTION / PROJECTION</span>
             </div>
-
-            {hasResult && (
-              <div className='grid grid-cols-2 gap-4'>
-                {/* Batch result combobox */}
-                {mode === "batch" && hasBatchResults && (
-                  <Combobox
-                    value={activeOption ? `${activeOption.label} (${activeOption.dataSource.toUpperCase()})` : ""}
-                    onValueChange={(val) => {
-                      const match = batchOptions.find((opt) => opt.label === val);
-                      if (match) setActiveResultIndex(Number(match.value));
-                    }}
-                  >
-                    <ComboboxInput placeholder='Switch batch result…' />
-                    <ComboboxContent>
-                      <ComboboxList>
-                        {batchOptions.map((opt) => (
-                          <ComboboxItem key={opt.value} value={opt.label} className='cursor-pointer'>
-                            <div className='flex flex-col gap-0.5'>
-                              <span className='font-medium'>{opt.label}</span>
-                              <span className='text-[11px] text-muted-foreground uppercase'>{opt.detail}</span>
-                            </div>
-                          </ComboboxItem>
-                        ))}
-                      </ComboboxList>
-                    </ComboboxContent>
-                  </Combobox>
-                )}
-              </div>
-            )}
-
-            {isLoading ? (
-              <div className='size-full border flex flex-col items-center justify-center gap-4 animate-pulse'>
-                <WaveLoader className='' primaryBgClass='' />
-                <p className='text-muted-foreground '>
-                  {mode === "batch" ? "Loading batch predictions..." : "Loading prediction..."}
-                </p>
-              </div>
-            ) : error ? (
-              <div className='size-full border border-red-500/30 bg-red-500/5 flex flex-col items-center justify-center gap-5 relative'>
-                {/* Dismiss button */}
-                <Button
-                  variant='ghost'
-                  size='sm'
-                  onClick={clearError}
-                  className='absolute top-3 right-3 h-7 w-7 p-0 text-red-400 hover:text-red-300 hover:bg-red-500/10'
-                >
-                  <HugeiconsIcon icon={CancelCircleIcon} size={16} strokeWidth={2} />
-                </Button>
-
-                {/* Error icon */}
-                <div className='size-14 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center'>
-                  <HugeiconsIcon icon={Alert02Icon} size={28} strokeWidth={1.5} className='text-red-400' />
-                </div>
-
-                {/* Error content */}
-                <div className='text-center max-w-md px-4 flex flex-col gap-2'>
-                  <p className='text-sm font-semibold text-red-400'>{error.title}</p>
-                  <p className='text-sm text-red-300/80 leading-relaxed'>{error.message}</p>
-                  {error.code && (
-                    <span className='inline-block mt-1 text-xs font-mono text-red-400/60 bg-red-500/10 border border-red-500/20 px-2 py-0.5 rounded w-fit mx-auto'>
-                      {error.code}
-                    </span>
-                  )}
-                </div>
-
-                {/* Timestamp */}
-                <p className='text-xs text-red-400/40 font-mono'>{error.timestamp.toLocaleTimeString()}</p>
-              </div>
-            ) : hasResult ? (
-              <div className="flex flex-col gap-4 overflow-y-auto">
-                <PredictionChart ref={chartRef} data={displayResult} />
-                <ModelComparisonPanel comparisons={displayResult.model_comparisons ?? []} />
-              </div>
-            ) : (
-              <div className='size-full border flex flex-col items-center justify-center gap-4'>
-                <HugeiconsIcon
-                  icon={ChartCandlestickIcon}
-                  size={48}
-                  strokeWidth={1.5}
-                  className='text-muted-foreground'
-                />
-                <div className='text-center'>
-                  <p className='text-muted-foreground'>No prediction data yet</p>
-                  <p className='text-sm text-muted-foreground/60'>Run a prediction to see the chart</p>
-                </div>
-              </div>
-            )}
+            <h4 className="mt-2 text-xl font-bold tracking-[-0.04em] sm:text-2xl">Forecast canvas</h4>
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+              History transitions into a distinct forecast region.
+            </p>
           </div>
-        </CardContent>
-      </Card>
+          {hasResult && displayResult && (
+            <div className="flex flex-wrap items-center gap-2">
+              <SaveResultAction result={displayResult} batchResults={batchResults} isBatch={isBatch} />
+              <DownloadActions chartRef={chartRef} displayResult={displayResult} batchResults={batchResults} isBatch={isBatch} captureChart={captureChart} />
+            </div>
+          )}
+        </div>
+
+        {mode === "batch" && hasBatchResults && (
+          <div className="flex flex-wrap items-center justify-between gap-3 border-y border-border py-4">
+            <span className="terminal-kicker">BATCH RUN / SELECT RESULT</span>
+            <Combobox value={activeOption ? activeOption.label : ""} onValueChange={(value) => {
+              const match = batchOptions.find((opt) => opt.label === value);
+              if (match) setActiveResultIndex(Number(match.value));
+            }}>
+              <ComboboxInput placeholder="Choose batch result…" className="w-full sm:w-64" />
+              <ComboboxContent>
+                <ComboboxList>
+                  {batchOptions.map((opt) => (
+                    <ComboboxItem key={opt.value} value={opt.label} className="cursor-pointer">
+                      <div className="flex flex-col gap-0.5">
+                        <span className="font-medium">{opt.label}</span>
+                        <span className="terminal-kicker !text-[10px]">{opt.detail}</span>
+                      </div>
+                    </ComboboxItem>
+                  ))}
+                </ComboboxList>
+              </ComboboxContent>
+            </Combobox>
+          </div>
+        )}
+
+        {isLoading ? (
+          <div className="flex min-h-[510px] flex-col items-center justify-center gap-5 border border-border bg-card" role="status" aria-live="polite">
+            <WaveLoader className="" primaryBgClass="" />
+            <p className="terminal-kicker">PROCESSING / {mode === "batch" ? "BATCH FORECASTS" : "SINGLE FORECAST"}</p>
+          </div>
+        ) : error ? (
+          <div className="relative flex min-h-[510px] flex-col items-center justify-center gap-5 border border-destructive/50 bg-card px-6 text-center" role="alert">
+            <Button variant="ghost" size="icon-sm" onClick={clearError} className="absolute right-4 top-4 text-destructive" aria-label="Dismiss prediction error">
+              <HugeiconsIcon icon={CancelCircleIcon} size={17} strokeWidth={1.5} />
+            </Button>
+            <HugeiconsIcon icon={Alert02Icon} size={35} strokeWidth={1.3} className="text-destructive" />
+            <div className="max-w-md space-y-3">
+              <span className="terminal-kicker text-destructive">PREDICTION ERROR</span>
+              <h4 className="terminal-heading text-3xl">{error.title}</h4>
+              <p className="text-sm leading-relaxed text-muted-foreground">{error.message}</p>
+              {error.code && <p className="terminal-mono text-xs text-destructive">{error.code}</p>}
+              <p className="terminal-mono text-[11px] text-muted-foreground">{error.timestamp.toLocaleTimeString()}</p>
+            </div>
+          </div>
+        ) : hasResult ? (
+          <div className="min-w-0 space-y-7">
+            <div className="min-w-0 border border-border bg-card p-3 sm:p-5">
+              <PredictionChart ref={chartRef} data={displayResult} />
+            </div>
+            <ModelComparisonPanel comparisons={displayResult.model_comparisons ?? []} />
+          </div>
+        ) : (
+          <div className="relative flex min-h-[510px] flex-col items-center justify-center overflow-hidden border border-border bg-card px-6 text-center">
+            <span aria-hidden="true" className="pointer-events-none absolute bottom-0 right-3 select-none font-sans text-[clamp(9rem,19vw,17rem)] font-black leading-[0.8] tracking-[-0.09em] text-foreground/[0.025]">00</span>
+            <span className="terminal-mono absolute left-5 top-5 text-[11px] text-muted-foreground">FIG. 001 / STANDBY</span>
+            <span className="terminal-mono absolute right-5 top-5 text-[11px] text-muted-foreground">NO DATA</span>
+            <div className="relative z-10 flex flex-col items-center">
+              <div className="mb-7 flex size-16 items-center justify-center border border-[#FF3D00]/60 text-[#FF3D00]">
+                <HugeiconsIcon icon={ChartCandlestickIcon} size={30} strokeWidth={1.2} />
+              </div>
+              <span className="terminal-kicker text-[#FF3D00]">AWAITING INPUT</span>
+              <h4 className="terminal-heading mt-3 text-[clamp(2rem,4vw,3.75rem)]">NO SIGNAL<br />JUST YET<span className="terminal-accent">.</span></h4>
+              <p className="mt-5 max-w-[350px] text-sm leading-relaxed text-muted-foreground">Configure your parameters and run a forecast to populate this canvas.</p>
+            </div>
+            <div className="absolute inset-x-5 bottom-5 flex justify-between border-t border-border pt-3">
+              <span className="terminal-kicker !text-[9px]">HISTORY / FORECAST</span>
+              <span className="terminal-kicker !text-[9px]">STUDIO IDLE</span>
+            </div>
+          </div>
+        )}
+      </div>
     </section>
   );
 };

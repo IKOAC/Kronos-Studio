@@ -1,40 +1,26 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Inter, JetBrains_Mono } from "next/font/google";
+import { Inter, Inter_Tight, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { Providers } from "@/providers/providers";
 
-const jetbrainsMono = JetBrains_Mono({subsets:['latin'],variable:'--font-mono'});
-
-const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"]
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"]
-});
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
+const interTight = Inter_Tight({ subsets: ["latin"], variable: "--font-inter-tight", display: "swap" });
+const jetbrainsMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains", display: "swap" });
 
 export const metadata: Metadata = {
-  title: "Kronos Price Prediction Studio",
-  description: "Frontend dashboard for Kronos price prediction workflows."
+  title: "Kronos / Forecast Terminal",
+  description: "Multi-model market forecasting and research workspace."
 };
 
-export default function RootLayout({
-  children
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html
-      lang='en'
+      lang="en"
       suppressHydrationWarning
-      className={cn("dark h-full", "antialiased", geistSans.variable, geistMono.variable, inter.variable, "font-mono", jetbrainsMono.variable)}
+      className={cn("dark h-full antialiased", inter.variable, interTight.variable, jetbrainsMono.variable)}
     >
-      <body className='min-h-full flex flex-col'>
+      <body className="flex min-h-full flex-col font-sans">
         <Providers>{children}</Providers>
       </body>
     </html>

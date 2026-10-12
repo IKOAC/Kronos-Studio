@@ -22,7 +22,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
           </TooltipProvider>
         </ThemeProvider>
       </ReactQueryStreamedHydration>
-      <ReactQueryDevtools initialIsOpen={false} />
+      {process.env.NEXT_PUBLIC_SHOW_QUERY_DEVTOOLS === "true" && <ReactQueryDevtools initialIsOpen={false} />}
     </QueryClientProvider>
   );
 }

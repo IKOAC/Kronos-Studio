@@ -1,24 +1,13 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { usePricePredictionStore } from "@/stores/pricePredictionStore";
 
-const getBatchMode = (modelName: string) => {
-  switch (modelName) {
-    case "kronos-mini":
-      return "Fast";
-    case "kronos-small":
-      return "Balanced";
-    case "kronos-base":
-      return "Quality";
-    case "chronos-2":
-    case "timesfm-2.5":
-    case "fincast":
-      return "Price forecast";
-    default:
-      return "Forecast";
-  }
+const modeLabel = (modelName: string) => {
+  if (modelName === "kronos-mini") return "FAST";
+  if (modelName === "kronos-small") return "BALANCED";
+  if (modelName === "kronos-base") return "QUALITY";
+  return "CLOSE FORECAST";
 };
 
-const InfoPanel = () => {
+export default function InfoPanel() {
   const singleParams = usePricePredictionStore((state) => state.params);
   const batchParamsState = usePricePredictionStore((state) => state.batchParams);
   const mode = usePricePredictionStore((state) => state.mode);
@@ -28,76 +17,52 @@ const InfoPanel = () => {
 
   const isBatch = mode === "batch";
   const params = isBatch ? batchParamsState : singleParams;
-
-  // In batch mode, show active result's symbol or the configured batch item symbol
+  const batchSelection = batchResults?.[activeResultIndex]?.request;
   const activeSymbol = isBatch
-    ? batchResults && batchResults.length > 0
-      ? batchResults[activeResultIndex]?.request.symbol || `Symbol #${activeResultIndex + 1}`
-      : batchItems[0]?.symbol || "Not selected"
-    : params.symbol || "Not selected";
-
+    ? batchSelection?.symbol || batchItems[0]?.symbol || "NOT SELECTED"
+    : params.symbol || "NOT SELECTED";
   const activeDataSource = isBatch
-    ? batchResults && batchResults.length > 0
-      ? batchResults[activeResultIndex]?.request.data_source
-      : batchItems[0]?.data_source || "binance"
+    ? batchSelection?.data_source || batchItems[0]?.data_source || "binance"
     : params.data_source;
-
   const activeInterval = isBatch
-    ? batchResults && batchResults.length > 0
-      ? batchResults[activeResultIndex]?.request.interval
-      : batchItems[0]?.interval || "1h"
+    ? batchSelection?.interval || batchItems[0]?.interval || "1h"
     : params.interval;
 
-  const DashboardData = [
+  const facts = [
     {
-      label: "Selected market",
-      title: activeSymbol,
-      subtitle: `${activeDataSource}, ${activeInterval} candles`,
-      textColor: "text-green-300"
+      index: "01",
+      label: "SELECTED MARKET",
+      value: activeSymbol,
+      note: `${activeDataSource?.toUpperCase()} / ${activeInterval?.toUpperCase()}`,
     },
     {
-      label: "Forecast window",
-      title: `${params.pred_len} steps`,
-      subtitle: `${params.lookback} candle context`,
-      textColor: "text-cyan-300"
+      index: "02",
+      label: "FORECAST WINDOW",
+      value: `${params.pred_len} STEPS`,
+      note: `${params.lookback} CANDLES / LOOKBACK`,
     },
     {
-      label: "Runtime",
-      title: params.device,
-      subtitle: params.model_name,
-      textColor: "text-amber-300"
-    }
+      index: "03",
+      label: "COMPUTE DEVICE",
+      value: params.device.toUpperCase(),
+      note: `${modeLabel(params.model_name)} / ${params.selected_models.length} MODEL${params.selected_models.length === 1 ? "" : "S"}`,
+    },
   ];
 
   return (
-    <div className='grid w-full grid-cols-1 md:grid-cols-3 gap-2 lg:gap-4'>
-      {DashboardData.map((item, index) => (
-        <Card key={item.label} className='flex-1 gap-1 p-4 relative'>
-          {index === 2 && (
-            <div className='absolute top-2 right-2 px-2 py-0.5 bg-emerald-500/20 text-emerald-400 text-xs font-medium'>
-              {getBatchMode(params.model_name)}
-            </div>
-          )}
-
-          {/* Batch count badge on the first card */}
-          {index === 0 && isBatch && (
-            <div className='absolute top-2 right-2 px-2 py-0.5 bg-blue-500/20 text-blue-400 text-xs font-medium rounded'>
-              Batch ({batchItems.length})
-            </div>
-          )}
-
-          <CardHeader className='p-0'>
-            <CardDescription className='text-neutral-500 text-xs capitalize'>{item.label}</CardDescription>
-          </CardHeader>
-
-          <CardContent className='p-0'>
-            <CardTitle className={`text-xl font-bold text-whit uppercase`}>{item.title}</CardTitle>
-            <p className={`text-sm capitalize ${item.textColor}`}>{item.subtitle}</p>
-          </CardContent>
-        </Card>
+    <div className="grid grid-cols-1 border-b border-border sm:grid-cols-3" aria-label="Forecast configuration summary">
+      {facts.map((fact, index) => (
+        <div key={fact.label} className={`min-w-0 px-5 py-6 sm:px-7 ${index < 2 ? "border-b border-border sm:border-b-0 sm:border-r" : ""}`}>
+          <div className="flex items-center gap-2">
+            <span className="terminal-section-index">{fact.index}</span>
+            <span className="terminal-kicker !text-[9px]">{fact.label}</span>
+          </div>
+          <p className="mt-3 truncate font-sans text-[clamp(1.25rem,2.1vw,1.9rem)] font-extrabold uppercase leading-none tracking-[-0.055em]" title={fact.value}>
+            {fact.value}
+          </p>
+          <p className="terminal-mono mt-3 truncate text-[10px] tracking-[0.025em] text-muted-foreground">{fact.note}</p>
+        </div>
       ))}
     </div>
   );
-};
-
-export default InfoPanel;
+}

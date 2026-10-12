@@ -3,19 +3,10 @@
 import { toast } from "sonner";
 
 import { useMutation } from "@tanstack/react-query";
-import { PlayIcon, RefreshIcon, Setting07Icon, PlusSignIcon } from "@hugeicons/core-free-icons";
+import { PlayIcon, RefreshIcon, PlusSignIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle
-} from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import DataSelector from "./DataSelector";
@@ -155,80 +146,69 @@ const Controllers = () => {
       : batchItems.some((item) => item.data_source === "local" && !item.local_path);
 
   return (
-    <Card className='flex size-full'>
-      <CardHeader>
-        <CardTitle>Run setup</CardTitle>
-        <CardDescription>Choose the models to compare and which forecast supplies the main chart.</CardDescription>
-        <CardAction>
-          <HugeiconsIcon icon={Setting07Icon} size={22} strokeWidth={1.8} />
-        </CardAction>
-      </CardHeader>
+    <div className="flex h-full min-w-0 flex-col">
+      <div className="border-b border-border px-5 pb-6 pt-7 sm:px-6">
+        <div className="flex items-center justify-between gap-3">
+          <span className="terminal-kicker"><span className="terminal-accent">01</span> / CONFIGURE</span>
+          <span className="terminal-mono text-[11px] text-[#FF3D00]">[ INPUT ]</span>
+        </div>
+        <h3 className="terminal-heading mt-5 text-3xl sm:text-4xl">SET THE<br />PARAMETERS<span className="terminal-accent">.</span></h3>
+        <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
+          Select models, define your data and prepare the forecast run.
+        </p>
+      </div>
 
-      <CardContent className='flex flex-col gap-3'>
-        {/* Mode toggle */}
-        <Tabs value={mode} onValueChange={(value) => setMode(value as PredictionMode)} className='w-full'>
-          <TabsList className='grid w-full grid-cols-2'>
-            <TabsTrigger value='single' className="cursor-pointer">Single</TabsTrigger>
-            <TabsTrigger value='batch' className="cursor-pointer">Batch</TabsTrigger>
-          </TabsList>
-        </Tabs>
+      <div className="flex flex-1 flex-col gap-7 px-5 py-6 sm:px-6">
+        <div className="space-y-3">
+          <span className="terminal-kicker">RUN TYPE / 01</span>
+          <Tabs value={mode} onValueChange={(value) => setMode(value as PredictionMode)} className="w-full">
+            <TabsList variant="line" className="grid h-12 w-full grid-cols-2 gap-0 border-b border-border bg-transparent p-0">
+              <TabsTrigger value="single" className="h-12 cursor-pointer text-xs uppercase tracking-widest data-active:text-[#FF3D00] data-active:after:bg-[#FF3D00]">Single</TabsTrigger>
+              <TabsTrigger value="batch" className="h-12 cursor-pointer text-xs uppercase tracking-widest data-active:text-[#FF3D00] data-active:after:bg-[#FF3D00]">Batch</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
 
-        {/* Model selector (always visible) */}
-        <div className='w-full flex flex-col gap-2'>
+        <div className="space-y-3">
+          <span className="terminal-kicker">INFERENCE / 02</span>
           <ModelSelector />
         </div>
 
-        <>
-          {/* Shared parameters (always visible) */}
+        <div className="space-y-3 border-t border-border pt-6">
+          <span className="terminal-kicker">MARKET DATA &amp; SETTINGS / 03</span>
           <DataSelector />
-          {/* Batch items list (batch mode only) */}
-          {mode === "batch" && (
-            <div className='flex flex-col gap-2 '>
-              <div className='flex items-center justify-between'>
-                <h2 className='text-sm font-semibold'>
-                  Symbols
-                  <span className='text-xs font-normal text-muted-foreground'>
-                    ({batchItems.length}/{MAX_BATCH_SIZE})
-                  </span>
-                </h2>
-                <Button
-                  variant='outline'
-                  size='sm'
-                  onClick={addBatchItem}
-                  disabled={batchItems.length >= MAX_BATCH_SIZE}
-                  className='h-7 text-xs gap-1 cursor-pointer'
-                >
-                  <HugeiconsIcon icon={PlusSignIcon} size={12} strokeWidth={2} />
-                  Add
-                </Button>
-              </div>
+        </div>
 
-              <div className='flex flex-col gap-2 max-h-[400px] overflow-y-auto py-1 pr-2'>
-                {batchItems.map((item, index) => (
-                  <BatchItemCard key={index} index={index} item={item} canRemove={batchItems.length > 1} />
-                ))}
+        {mode === "batch" && (
+          <div className="space-y-4 border-t border-border pt-6">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <span className="terminal-kicker">BATCH QUEUE / 04</span>
+                <p className="terminal-mono mt-1 text-xs text-foreground">{batchItems.length} of {MAX_BATCH_SIZE} markets</p>
               </div>
+              <Button variant="outline" size="sm" onClick={addBatchItem} disabled={batchItems.length >= MAX_BATCH_SIZE} className="gap-1.5">
+                <HugeiconsIcon icon={PlusSignIcon} size={14} strokeWidth={1.5} /> Add symbol
+              </Button>
             </div>
-          )}
-        </>
-      </CardContent>
+            <div className="flex max-h-[440px] flex-col gap-3 overflow-y-auto pr-1">
+              {batchItems.map((item, index) => (
+                <BatchItemCard key={index} index={index} item={item} canRemove={batchItems.length > 1} />
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
 
-      <CardFooter className='size-full flex gap-2 items-end'>
-        <Button
-          type='submit'
-          className='flex-2 cursor-pointer'
-          onClick={handlePredict}
-          disabled={isPending || isMissingLocalFile}
-        >
-          <HugeiconsIcon icon={PlayIcon} size={16} strokeWidth={2} />
-          {isPending ? "Predicting..." : mode === "batch" ? `Predict Batch (${batchItems.length})` : "Predict"}
+      <div className="flex flex-wrap items-center gap-4 border-t border-border bg-card px-5 py-5 sm:px-6">
+        <Button type="button" className="min-w-0 flex-[2] justify-between gap-2 px-0" onClick={handlePredict} disabled={isPending || isMissingLocalFile}>
+          <span>{isPending ? "Forecasting…" : mode === "batch" ? `Run batch (${batchItems.length})` : "Run forecast"}</span>
+          <HugeiconsIcon icon={PlayIcon} size={16} strokeWidth={1.6} />
         </Button>
-        <Button variant='outline' className='flex-1 cursor-pointer' onClick={handleReset} disabled={isPending}>
-          <HugeiconsIcon icon={RefreshIcon} size={16} strokeWidth={2} />
-          Reset
+        <Button variant="ghost" className="flex-1 px-0" onClick={handleReset} disabled={isPending}>
+          <HugeiconsIcon icon={RefreshIcon} size={14} strokeWidth={1.5} /> Reset
         </Button>
-      </CardFooter>
-    </Card>
+      </div>
+    </div>
   );
 };
 
