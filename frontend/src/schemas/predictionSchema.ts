@@ -43,6 +43,22 @@ export const CandleRecordSchema = z.object({
   amount: z.number()
 });
 
+export const ModelComparisonSchema = z.object({
+  model_name: ModelNameEnum,
+  model: AvailableModelSchema,
+  prediction: z.array(CandleRecordSchema),
+  direction: z.enum(["up", "down", "flat"]),
+  predicted_change_pct: z.number(),
+  confidence_score: z.number().min(0).max(100),
+  confidence_label: z.enum(["Low agreement", "Moderate agreement", "High agreement"]),
+  sample_count: z.number().int().min(1),
+  direction_counts: z.object({
+    up: z.number().int(),
+    down: z.number().int(),
+    flat: z.number().int()
+  })
+});
+
 export const PredictionOptionsResponseSchema = z.object({
   data_sources: z.array(DataSourceEnum),
   models: z.record(ModelNameEnum, AvailableModelSchema),
@@ -68,13 +84,15 @@ export const PricePredictionResponseSchema = z.object({
   prediction_start_timestamp: z.string(),
   history: z.array(CandleRecordSchema),
   future_timestamps: z.array(z.string()),
-  prediction: z.array(CandleRecordSchema)
+  prediction: z.array(CandleRecordSchema),
+  model_comparisons: z.array(ModelComparisonSchema).default([])
 });
 
 export const PricePredictionBatchResponseSchema = z.array(PricePredictionResponseSchema);
 
 export type PricePredictionRequest = z.infer<typeof PricePredictionRequestSchema>;
 export type PricePredictionResponse = z.infer<typeof PricePredictionResponseSchema>;
+export type ModelComparison = z.infer<typeof ModelComparisonSchema>;
 export type PricePredictionBatchRequest = z.infer<typeof PricePredictionBatchRequestSchema>;
 export type PricePredictionBatchResponse = z.infer<typeof PricePredictionBatchResponseSchema>;
 export type UploadedDataFileResponse = z.infer<typeof UploadedDataFileResponseSchema>;
