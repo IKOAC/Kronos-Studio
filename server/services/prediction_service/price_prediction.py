@@ -1,6 +1,7 @@
 import pandas as pd
 
-from constants.available_models import AVAILABLE_MODELS
+from constants.available_models import AVAILABLE_MODELS, model_metadata
+from services.prediction_service.adapters import validate_selection
 from errors.errors import (ModelLoadError, PredictionAPIError,
                            PredictionRuntimeError,
                            UnsupportedPredictionOptionError)
@@ -23,16 +24,18 @@ class PricePredictionService:
 
     def predict_price(self, request: PricePredictionRequest):
         """Fetch selected data, run the selected model, and return JSON-safe output."""
+        validate_selection(request)
         prepared_data = self._load_data(request)
 
-        # Run every available model. The selected model remains the primary chart forecast.
+        # Run only selected models; model_name controls the primary chart.
         model_predictions = {}
         active_model_name = request.model_name
         try:
-            for active_model_name in AVAILABLE_MODELS:
+            for active_model_name in request.selected_models:
                 self.prediction_service.configure(
                     model_name=active_model_name,
                     device=request.device,
+                    model_id=request.model_ids.get(active_model_name),
                 )
                 model_predictions[active_model_name] = self.prediction_service.predict(
                     df=prepared_data["df"],
@@ -49,7 +52,7 @@ class PricePredictionService:
             raise
         except (OSError, FileNotFoundError) as exc:
             raise ModelLoadError(
-                f"Could not load Kronos model '{active_model_name}'. Check model files or network access.",
+                f"Could not load model '{active_model_name}'. Check model files or network access.",
                 details={"model_name": active_model_name, "device": request.device},
             ) from exc
         except RuntimeError as exc:
@@ -72,6 +75,7 @@ class PricePredictionService:
             model_predictions=model_predictions,
             last_history_close=float(prepared_data["df"]["close"].iloc[-1]),
             sample_count=request.sample_count,
+            model_ids=request.model_ids,
         )
 
         # Move prediction timestamps from the DataFrame index into the API response.
@@ -79,7 +83,7 @@ class PricePredictionService:
 
         return {
             "request": request.model_dump(),
-            "model": AVAILABLE_MODELS[request.model_name],
+            "model": model_metadata(request.model_name, request.model_ids),
             "lookback_start_timestamp": self._timestamp_to_json(
                 prepared_data["x_timestamp"].iloc[0]
             ),
@@ -100,6 +104,7 @@ class PricePredictionService:
         model_predictions: dict,
         last_history_close: float,
         sample_count: int,
+        model_ids: dict | None = None,
     ) -> list[dict]:
         """Summarize forecasts and directional consensus; this is not accuracy probability."""
         directions = {}
@@ -127,7 +132,10 @@ class PricePredictionService:
         for model_name, forecast_df in model_predictions.items():
             direction = directions[model_name]
             score = direction_counts[direction] / model_count * 100.0
-            if score >= 99.9:
+            if model_count < 2:
+                score = 0.0
+                label = "Not comparable"
+            elif score >= 99.9:
                 label = "High agreement"
             elif score >= 50.0:
                 label = "Moderate agreement"
@@ -136,13 +144,13 @@ class PricePredictionService:
             serializable_df = forecast_df.reset_index(names="timestamps")
             comparisons.append({
                 "model_name": model_name,
-                "model": AVAILABLE_MODELS[model_name],
+                "model": model_metadata(model_name, model_ids),
                 "prediction": self._records_to_json(serializable_df),
                 "direction": direction,
                 "predicted_change_pct": round(changes[model_name], 4),
                 "confidence_score": round(score, 1),
                 "confidence_label": label,
-                "sample_count": sample_count,
+                "sample_count": sample_count if AVAILABLE_MODELS[model_name]["adapter"] == "kronos" else 1,
                 "direction_counts": direction_counts,
             })
         return comparisons
