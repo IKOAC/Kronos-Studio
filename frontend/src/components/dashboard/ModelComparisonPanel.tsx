@@ -5,12 +5,6 @@ type ModelComparisonPanelProps = {
   comparisons: ModelComparison[];
 };
 
-const modelLabels: Record<ModelComparison["model_name"], string> = {
-  "kronos-mini": "Kronos Mini",
-  "kronos-small": "Kronos Small",
-  "kronos-base": "Kronos Base"
-};
-
 const directionLabel: Record<ModelComparison["direction"], string> = {
   up: "Upward",
   down: "Downward",
@@ -27,18 +21,19 @@ export default function ModelComparisonPanel({ comparisons }: ModelComparisonPan
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Three-model comparison</CardTitle>
+        <CardTitle>Model comparison ({comparisons.length})</CardTitle>
         <CardDescription>
-          Each forecast is shown with its directional agreement across the three models.
+          Each forecast is shown with its directional agreement across the selected models.
           Agreement is not a probability that the forecast will be accurate.
         </CardDescription>
       </CardHeader>
-      <CardContent className="grid gap-3 sm:grid-cols-3">
+      <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {comparisons.map((item) => (
           <div key={item.model_name} className="rounded-lg border p-4 flex flex-col gap-3">
             <div className="flex items-start justify-between gap-2">
               <div>
-                <p className="font-semibold">{modelLabels[item.model_name]}</p>
+                <p className="font-semibold">{item.model.name}</p>
+                <p className="break-all text-xs text-muted-foreground">{item.model.model_id}</p>
                 <p className="text-sm text-muted-foreground">{directionLabel[item.direction]} direction</p>
               </div>
               <span className="text-sm font-medium tabular-nums">{formatChange(item.predicted_change_pct)}</span>
@@ -46,7 +41,7 @@ export default function ModelComparisonPanel({ comparisons }: ModelComparisonPan
             <div className="flex items-end justify-between gap-2">
               <div>
                 <p className="text-xs text-muted-foreground">Directional agreement</p>
-                <p className="text-2xl font-semibold tabular-nums">{item.confidence_score.toFixed(0)}%</p>
+                <p className="text-2xl font-semibold tabular-nums">{comparisons.length > 1 ? `${item.confidence_score.toFixed(0)}%` : "—"}</p>
               </div>
               <span className="text-xs rounded-md border px-2 py-1">{item.confidence_label}</span>
             </div>
