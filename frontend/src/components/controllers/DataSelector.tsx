@@ -35,7 +35,7 @@ const fieldDescriptions = {
   temperature: "Controls randomness in generation. Higher values make output more random. Set to 0 for deterministic.",
   topP: "Nucleus sampling threshold. Only tokens with cumulative probability above this are considered. Lower = more focused.",
   topK: "Number of highest probability tokens to keep. 0 disables top-k filtering. Limits vocabulary during generation.",
-  sampleCount: "Number of predictions to generate. More samples provide variety but take longer to generate."
+  sampleCount: "Samples used by Kronos during inference. More samples generally take longer; the comparison rating measures model direction agreement, not accuracy probability."
 };
 
 const DataSelector = () => {
