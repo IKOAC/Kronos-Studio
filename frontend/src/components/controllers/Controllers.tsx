@@ -128,7 +128,13 @@ const Controllers = () => {
 
       const batchRequests: PricePredictionRequest[] = batchItems.map((item) => ({
         ...batchParams, // batch shared: model_name, device, lookback, pred_len
-        ...item // per-item overrides: data_source, symbol, interval, period, limit, sampling params
+        ...item, // source and sampling settings are per item
+        model_name: batchParams.model_name,
+        selected_models: batchParams.selected_models,
+        model_ids: batchParams.model_ids,
+        device: batchParams.device,
+        lookback: batchParams.lookback,
+        pred_len: batchParams.pred_len
       }));
 
       predictPriceBatchMutation.mutate(batchRequests);
@@ -152,7 +158,7 @@ const Controllers = () => {
     <Card className='flex size-full'>
       <CardHeader>
         <CardTitle>Run setup</CardTitle>
-        <CardDescription>Every prediction runs Mini, Small, and Base. Choose which model supplies the main chart.</CardDescription>
+        <CardDescription>Choose the models to compare and which forecast supplies the main chart.</CardDescription>
         <CardAction>
           <HugeiconsIcon icon={Setting07Icon} size={22} strokeWidth={1.8} />
         </CardAction>
@@ -169,7 +175,6 @@ const Controllers = () => {
 
         {/* Model selector (always visible) */}
         <div className='w-full flex flex-col gap-2'>
-          <h2 className='text-sm font-semibold'>Primary chart model</h2>
           <ModelSelector />
         </div>
 
