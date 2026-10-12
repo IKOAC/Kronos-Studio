@@ -28,7 +28,7 @@ const PriceChart = ({ data, showVolume = true }: PriceChartProps) => {
     timestamp: string;
     price: number | null;
     prediction: number | null;
-    volume: number;
+    volume: number | null;
     type: string;
   };
 
@@ -51,7 +51,7 @@ const PriceChart = ({ data, showVolume = true }: PriceChartProps) => {
   const firstPrediction = data.prediction[0];
 
   // Override the first prediction item to include price value
-  predictionData[0].price = firstPrediction.close;
+  if (firstPrediction) predictionData[0].price = firstPrediction.close;
 
   const allData = [...historyData, ...predictionData];
 
