@@ -92,11 +92,11 @@ async def upload_local_data_file(
 
 @router.post("/prediction/price", response_model=PricePredictionResponse)
 def predict_price(request: PricePredictionRequest) -> PricePredictionResponse:
-    return prediction_service.predict_price(request)
+    return PricePredictionService().predict_price(request)
 
 
 @router.post("/prediction/price/batch", response_model=list[PricePredictionResponse])
 def predict_price(
     request: list[PricePredictionRequest],
 ) -> list[PricePredictionResponse]:
-    return batch_prediction_service.predict_batch(request)
+    return BatchPricePredictionService().predict_batch(request)
