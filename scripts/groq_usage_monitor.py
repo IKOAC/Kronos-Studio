@@ -57,6 +57,9 @@ def record(model, usage, headers, status_code):
         "status_code": int(status_code),
         "daily_requests_limit": HEADERS.get("x-ratelimit-limit-requests"),
         "daily_requests_remaining": HEADERS.get("x-ratelimit-remaining-requests"),
+        "minute_tokens_limit": HEADERS.get("x-ratelimit-limit-tokens"),
+        "minute_tokens_remaining": HEADERS.get("x-ratelimit-remaining-tokens"),
+        "minute_tokens_reset": HEADERS.get("x-ratelimit-reset-tokens"),
     }
     HOME.mkdir(parents=True, exist_ok=True)
     with LOG.open("a", encoding="utf-8") as f:

@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { analyzeWithGroq, getGroqUsage } from "@/lib/api/groqAnalysis";
-import type { GroqAnalysisResponse, GroqQuota } from "@/schemas/groqAnalysisSchema";
+import { analyzeWithGroq, analyzeWithTradingAgents, getGroqUsage } from "@/lib/api/groqAnalysis";
+import type { GroqAnalysisResponse, GroqQuota, TradingAgentsResponse } from "@/schemas/groqAnalysisSchema";
 import type { PricePredictionResponse } from "@/schemas/predictionSchema";
 
 const format = (value: number | null | undefined, suffix = "") =>
@@ -31,11 +31,11 @@ function Evidence({ ids, analysis }: { ids: string[]; analysis: GroqAnalysisResp
 }
 
 function AnalysisSession({ result }: { result: PricePredictionResponse }) {
-  const [analysis, setAnalysis] = useState<GroqAnalysisResponse | null>(null);
+  const [analysis, setAnalysis] = useState<GroqAnalysisResponse | TradingAgentsResponse | null>(null);
   const [quota, setQuota] = useState<GroqQuota | null>(null);
   const [usageError, setUsageError] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState<"groq" | "agents" | null>(null);
   const activeRequest = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -50,15 +50,15 @@ function AnalysisSession({ result }: { result: PricePredictionResponse }) {
     };
   }, []);
 
-  async function analyze() {
+  async function analyze(mode: "groq" | "agents") {
     if (activeRequest.current) return;
     const controller = new AbortController();
     activeRequest.current = controller;
-    setLoading(true);
+    setLoading(mode);
     setError(null);
     setAnalysis(null);
     try {
-      const response = await analyzeWithGroq(result, controller.signal);
+      const response = await (mode === "agents" ? analyzeWithTradingAgents : analyzeWithGroq)(result, controller.signal);
       if (!controller.signal.aborted) {
         setAnalysis(response);
         setQuota(response.quota);
@@ -74,7 +74,7 @@ function AnalysisSession({ result }: { result: PricePredictionResponse }) {
         } catch { if (!controller.signal.aborted) setUsageError(true); }
       }
     } finally {
-      if (!controller.signal.aborted) setLoading(false);
+      if (!controller.signal.aborted) setLoading(null);
       activeRequest.current = null;
     }
   }
@@ -88,23 +88,46 @@ function AnalysisSession({ result }: { result: PricePredictionResponse }) {
           <h4 id="analysis-heading" className="text-lg font-bold tracking-tight">AI analysis</h4>
           <p className="mt-1 text-xs text-muted-foreground">{result.request.symbol || "Local market"} · {result.request.interval} · Python metrics / Groq interpretation</p>
         </div>
-        <Button type="button" onClick={analyze} disabled={loading || (quota !== null && quota.usage_percent >= quota.cap_percent)}>
-          {loading ? "Analyzing…" : "Analyze with Groq"}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" onClick={() => analyze("groq")} disabled={loading !== null || (quota !== null && quota.usage_percent >= quota.cap_percent)}>
+            {loading === "groq" ? "Analyzing…" : "Analyze with Groq"}
+          </Button>
+          <Button type="button" variant="outline" onClick={() => analyze("agents")} disabled={loading !== null || (quota !== null && quota.usage_percent >= quota.cap_percent)}>
+            {loading === "agents" ? "Reviewing…" : "Run TradingAgents review"}
+          </Button>
+        </div>
       </div>
       <p className="terminal-mono mt-3 break-words text-[11px] text-muted-foreground" aria-live="polite">
         {quota ? `Recorded usage: ${quota.usage_percent.toFixed(2)}% · ceiling ${quota.cap_percent}% · ${quota.tokens_observed.toLocaleString()} tokens / ${quota.requests_used.toLocaleString()} requests · UTC ${quota.day_utc}` : "Recorded usage unavailable."}
         {usageError && " Usage could not be refreshed."}
       </p>
-      <p className="mt-1 text-xs text-muted-foreground">Runs only on click. Token totals cover locally recorded calls.</p>
-      {loading && <p className="mt-4 text-sm text-muted-foreground" role="status">Calculating metrics and interpreting the selected forecast…</p>}
+      <p className="mt-1 text-xs text-muted-foreground">Runs only on click. TradingAgents reviews the evidence in three calls. Token totals cover locally recorded calls.</p>
+      {loading && <p className="mt-4 text-sm text-muted-foreground" role="status">{loading === "agents" ? "Reviewing bullish evidence, bearish evidence, and the combined assessment…" : "Calculating metrics and interpreting the selected forecast…"}</p>}
       {error && <p className="mt-4 text-sm text-destructive" role="alert">{error}</p>}
       {analysis && technical && (
         <div className="mt-5 space-y-5">
           <div aria-live="polite">
-            <p className="terminal-kicker">GROQ ASSESSMENT</p>
+            <p className="terminal-kicker">{"agents" in analysis ? "TRADINGAGENTS ASSESSMENT" : "GROQ ASSESSMENT"}</p>
             <p className="mt-2 text-sm leading-relaxed">{analysis.findings.summary}</p>
           </div>
+          {"agents" in analysis && (
+            <div className="space-y-3">
+              <p className="terminal-mono text-[11px] text-muted-foreground">
+                {analysis.run_stats.requests_used} calls · {analysis.run_stats.tokens_used.toLocaleString()} tokens · {(analysis.run_stats.elapsed_ms / 1000).toFixed(2)}s
+              </p>
+              {analysis.agents.filter((agent) => agent.role !== "research_manager").map((agent) => (
+                <details key={agent.role} className="border border-border p-3">
+                  <summary className="cursor-pointer text-xs font-semibold">{agent.role === "bull" ? "Bull researcher" : "Bear researcher"}</summary>
+                  <p className="mt-3 text-sm leading-relaxed">{agent.findings.summary}</p>
+                  <div className="mt-3 space-y-3">
+                    <div><h5 className="mb-2 text-xs font-semibold">Supporting evidence</h5><Evidence ids={agent.findings.supporting_evidence_ids} analysis={analysis} /></div>
+                    <div><h5 className="mb-2 text-xs font-semibold">Conflicting evidence</h5><Evidence ids={agent.findings.conflicting_evidence_ids} analysis={analysis} /></div>
+                    {agent.findings.limitations.length > 0 && <ul className="list-inside list-disc text-xs text-muted-foreground">{agent.findings.limitations.map((item) => <li key={item}>{item}</li>)}</ul>}
+                  </div>
+                </details>
+              ))}
+            </div>
+          )}
           <dl className="grid grid-cols-2 gap-4 border-y border-border py-4 sm:grid-cols-3">
             {[
               ["RSI (14)", format(technical.rsi_14)],

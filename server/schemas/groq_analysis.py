@@ -51,7 +51,7 @@ class GroqFindings(BaseModel):
     @field_validator("summary")
     @classmethod
     def validate_summary(cls, value: str):
-        if any(char.isdigit() for char in value):
+        if not value.strip() or any(char.isdigit() for char in value):
             raise ValueError(
                 "The model summary must not quote unverified numeric claims."
             )
@@ -67,9 +67,11 @@ class GroqFindings(BaseModel):
     @field_validator("limitations")
     @classmethod
     def validate_limitations(cls, value: list[str]):
-        if any(len(v) > 170 or not v.strip() for v in value):
+        if any(
+            len(v) > 170 or not v.strip() or any(c.isdigit() for c in v) for v in value
+        ):
             raise ValueError(
-                "Limitations must be nonempty and at most 170 characters each."
+                "Limitations must be nonempty, bounded, and contain no numerical claims."
             )
         return value
 

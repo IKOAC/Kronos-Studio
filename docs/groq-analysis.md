@@ -7,7 +7,7 @@ Two **read-only, loopback-only** API routes are registered:
 - `GET /api/analysis/groq/usage` — returns recorded token/request usage and pending 5% alerts without calling Groq.
 - `POST /api/analysis/groq` — validates completed OHLCV data, executes the local deterministic engine, submits a compact **calculated metrics snapshot** to Groq's `openai/gpt-oss-120b`, validates the structured response, and returns both the original numerical metrics and bounded qualitative findings.
 
-The frontend offers manual analysis of an existing forecast. There is no automatic trade execution, additional market-data fetching, backtesting, or TradingAgents integration. `main` remains unchanged during development. The existing `POST /api/analysis/metrics` endpoint continues to work without Groq.
+The frontend offers manual analysis of an existing forecast. There is no automatic trade execution, additional market-data fetching or backtesting. The bounded TradingAgents research profile is documented in `docs/trading-agents.md`. `main` remains unchanged during development. The existing `POST /api/analysis/metrics` endpoint continues to work without Groq.
 
 ## Authentication and network boundary
 
@@ -39,7 +39,7 @@ The response contains:
 - `findings`: Groq's short text summary, evidence IDs, conflicting evidence IDs, and limitations. The model is not allowed to provide substitute calculations or live trade signals.
 - `quota`: UTC day, token/request usage, the configured ceiling and any unacknowledged 5% milestones.
 
-Strict JSON Schema constrains the model response. Pydantic checks length, unique evidence identifiers, and numerical-claim restrictions; the server checks every referenced evidence ID against the actual computed facts. Invalid or incomplete outputs are rejected (HTTP 502) **after metering the provider request**, not silently accepted or automatically retried.
+Strict JSON Schema constrains the response evidence IDs and known limitations using per-snapshot enums. Pydantic checks length, unique evidence identifiers, and numerical-claim restrictions; the server checks every referenced evidence ID against the actual computed facts. Invalid or incomplete outputs are rejected (HTTP 502) **after metering the provider request**, not silently accepted or automatically retried.
 
 ### Local smoke example (synthetic data)
 
@@ -73,3 +73,5 @@ Only clicking **Analyze with Groq** sends a POST. The panel never automatically 
 The panel displays Python RSI, MACD, EMA, ATR, agreement and dispersion separately from Groq's qualitative findings. Evidence values come from the returned Python metrics. Null metrics display an em dash. Known API errors use fixed frontend messages; arbitrary provider responses and validation inputs are never displayed. Recorded usage is refreshed after failures as well as successful analyses; pending milestone alerts are never acknowledged by the UI.
 
 Frontend checks: `npx tsc --noEmit`, `npm run lint`, `npm run build`.
+
+Phase 4–5 validation and live token benchmarks: `docs/phase4-5-validation.md`.

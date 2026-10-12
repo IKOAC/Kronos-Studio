@@ -92,6 +92,23 @@ export const GroqAnalysisResponseSchema = z.object({
   quota: QuotaSchema
 });
 
+export const TradingAgentsResponseSchema = GroqAnalysisResponseSchema.extend({
+  snapshot_id: z.string().regex(/^[a-f0-9]{64}$/),
+  agents: z.array(z.object({
+    role: z.enum(["bull", "bear", "research_manager"]),
+    findings: GroqAnalysisResponseSchema.shape.findings,
+  })).length(3),
+  run_stats: z.object({
+    profile: z.literal("snapshot_debate_v1"),
+    requests_used: z.number().int().min(0).max(3),
+    tokens_used: z.number().int().nonnegative(),
+    elapsed_ms: finite.nonnegative(),
+    reserved_tokens: z.number().int().positive(),
+    upstream_revision: z.string(),
+  }),
+});
+export type TradingAgentsResponse = z.infer<typeof TradingAgentsResponseSchema>;
+
 export const GroqQuotaSchema = QuotaSchema;
 export type GroqAnalysisResponse = z.infer<typeof GroqAnalysisResponseSchema>;
 export type GroqQuota = z.infer<typeof GroqQuotaSchema>;

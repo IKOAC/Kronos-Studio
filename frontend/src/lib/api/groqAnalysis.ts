@@ -1,6 +1,6 @@
 import { endpoint } from "@/utils/handleAPI";
 import {
-  buildGroqPayload, GroqAnalysisResponseSchema, GroqQuotaSchema,
+  buildGroqPayload, GroqAnalysisResponseSchema, GroqQuotaSchema, TradingAgentsResponseSchema,
 } from "@/schemas/groqAnalysisSchema";
 import type { PricePredictionResponse } from "@/schemas/predictionSchema";
 
@@ -12,6 +12,8 @@ const messages: Record<string, string> = {
   GROQ_INVALID_OUTPUT: "Groq returned an unsupported analysis. Usage was recorded.",
   GROQ_TRANSPORT_ERROR: "Groq did not return a usable response. The attempt was recorded.",
   GROQ_UPSTREAM_ERROR: "Groq could not complete the analysis.",
+  AGENT_RUN_LIMIT: "The TradingAgents review reached its request limit.",
+  AGENT_METRICS_CHANGED: "The research evidence failed its integrity check.",
   ANALYSIS_TOO_LARGE: "The analysis snapshot is too large.",
 };
 
@@ -38,18 +40,28 @@ export async function getGroqUsage(signal?: AbortSignal) {
   return readResponse(response, GroqQuotaSchema);
 }
 
-export async function analyzeWithGroq(result: PricePredictionResponse, signal?: AbortSignal) {
+async function requestAnalysis<T extends { symbol: string; interval: string }>(
+  result: PricePredictionResponse, route: string, schema: { parse: (data: unknown) => T }, signal?: AbortSignal,
+) {
   const body = buildGroqPayload(result);
-  const response = await fetch(endpoint("/analysis/groq"), {
+  const response = await fetch(endpoint(route), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
     cache: "no-store",
     signal,
   });
-  const analysis = await readResponse(response, GroqAnalysisResponseSchema);
+  const analysis = await readResponse(response, schema);
   if (analysis.symbol !== body.symbol || analysis.interval !== body.interval) {
     throw new Error("The analysis does not match the selected market.");
   }
   return analysis;
+}
+
+export function analyzeWithGroq(result: PricePredictionResponse, signal?: AbortSignal) {
+  return requestAnalysis(result, "/analysis/groq", GroqAnalysisResponseSchema, signal);
+}
+
+export function analyzeWithTradingAgents(result: PricePredictionResponse, signal?: AbortSignal) {
+  return requestAnalysis(result, "/analysis/trading-agents", TradingAgentsResponseSchema, signal);
 }
