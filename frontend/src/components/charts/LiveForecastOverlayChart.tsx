@@ -27,8 +27,12 @@ type CandleSeriesUpdater = {
   update: (bar: CandlestickData<UTCTimestamp>) => void;
 };
 
-const toChartTime = (value: string): UTCTimestamp =>
-  Math.floor(new Date(value).getTime() / 1000) as UTCTimestamp;
+const toChartTime = (value: string): UTCTimestamp => {
+  // Backend Binance timestamps are naive ISO strings representing UTC. Treat
+  // those as UTC too, so historical candles line up with UTC WebSocket times.
+  const normalized = /(?:Z|[+-]\\d{2}:?\\d{2})$/i.test(value) ? value : `${value}Z`;
+  return Math.floor(new Date(normalized).getTime() / 1000) as UTCTimestamp;
+};
 
 const modelColors: Record<PricePredictionResponse["request"]["model_name"], string> = {
   "kronos-mini": "#60a5fa",
