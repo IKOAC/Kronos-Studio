@@ -10,7 +10,7 @@ from scalar_fastapi import get_scalar_api_reference
 
 from db.migrations import run_migrations
 from errors.errors import PredictionAPIError
-from routers import prediction, results
+from routers import financial_analysis, prediction, results
 
 
 @asynccontextmanager
@@ -30,6 +30,7 @@ app = FastAPI(
 # Include Routers
 app.include_router(prediction.router, prefix="/api", tags=["Prediction"])
 app.include_router(results.router, prefix="/api", tags=["Results"])
+app.include_router(financial_analysis.router, prefix="/api", tags=["Financial analysis"])
 
 app.add_middleware(
     CORSMiddleware,
