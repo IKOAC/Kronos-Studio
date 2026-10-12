@@ -121,6 +121,8 @@ def ensure_models_cached() -> dict:
     logger.info("=" * 60)
 
     for key, config in AVAILABLE_MODELS.items():
+        if config["adapter"] != "kronos":
+            continue  # Additional checkpoints are downloaded only when selected.
         model_id = config["model_id"]
         tokenizer_id = config["tokenizer_id"]
         param_size = config["params"]
