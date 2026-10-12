@@ -1,5 +1,14 @@
+import sys
+from pathlib import Path
+
 import pandas as pd
 import pytest
+
+# Ensure the server package root is importable even when pytest is launched
+# from the repository root or with a different import mode.
+SERVER_ROOT = Path(__file__).resolve().parents[1]
+if str(SERVER_ROOT) not in sys.path:
+    sys.path.insert(0, str(SERVER_ROOT))
 
 from services.prediction_service.batch_price_prediction import BatchPricePredictionService
 from services.prediction_service.price_prediction import PricePredictionService
