@@ -139,6 +139,53 @@ npm run build && npm run start
 
 Then open **[http://localhost:3000](http://localhost:3000)**.
 
+## Three-model forecasting and live comparison
+
+Every **Single** and **Batch** prediction now evaluates all three Kronos models:
+`kronos-mini`, `kronos-small`, and `kronos-base`. The model selector determines
+which forecast is drawn in the main chart; all three forecasts are available in
+the **Three-model comparison** panel.
+
+Each model's **directional agreement** score is the fraction of the three
+models predicting the same final-close direction, with a 0.1% neutral band.
+The only possible scores with three models are 33.3%, 66.7%, and 100%.
+**These scores are not probabilities of forecast accuracy or profitability.**
+Sample count controls the model's internal sampling; it does not turn these
+scores into calibrated confidence estimates.
+
+For predictions sourced from **Binance**, enable **Live overlay** in the chart
+toolbar after a prediction finishes. This displays updating Binance candlesticks
+using the exchange's public kline WebSocket feed, alongside the **fixed**
+Mini/Small/Base forecast paths. Forecasts are not regenerated when new candles
+arrive; rerun a prediction to forecast again using fresh data. Yahoo Finance and
+local-CSV predictions do not currently support the live feed.
+
+### Test the feature locally (macOS / Linux)
+
+Run these commands from the cloned repository:
+
+```bash
+# Terminal 1: backend checks and server
+cd server
+uv sync
+uv run pytest
+uv run python start_server.py
+```
+
+```bash
+# Terminal 2: frontend checks and app
+cd frontend
+npm install
+npm run lint
+npm run build
+npm run dev
+```
+
+Open <http://localhost:3000>, run a **Binance** prediction, and toggle
+**Live overlay**. Initial model downloads and three-model inference can take
+substantially longer than a single-model prediction. The live WebSocket requires
+network access to Binance and may be unavailable in some regions or networks.
+
 ## How to Use
 
 ### Single Prediction
