@@ -66,17 +66,6 @@ const Dashboard = () => {
 
   return (
     <section className="flex h-full min-w-0 flex-col">
-      <div className="border-b border-border px-5 pb-6 pt-7 sm:px-7">
-        <div className="flex items-center justify-between gap-3">
-          <span className="terminal-kicker"><span className="terminal-accent">02</span> / ANALYZE</span>
-          <span className="terminal-mono text-[11px] text-[#FF3D00]">[ OUTPUT ]</span>
-        </div>
-        <h3 className="terminal-heading mt-5 text-3xl sm:text-4xl">THE MODEL<br />VIEW<span className="terminal-accent">.</span></h3>
-        <p className="mt-4 max-w-xl text-sm leading-relaxed text-muted-foreground">
-          Historical candles against the projected path. Compare the evidence, not just the direction.
-        </p>
-      </div>
-
       <InfoPanel />
 
       <div className="flex min-w-0 flex-1 flex-col gap-5 px-5 py-6 sm:px-7">

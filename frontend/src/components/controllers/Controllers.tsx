@@ -147,17 +147,6 @@ const Controllers = () => {
 
   return (
     <div className="flex h-full min-w-0 flex-col">
-      <div className="border-b border-border px-5 pb-6 pt-7 sm:px-6">
-        <div className="flex items-center justify-between gap-3">
-          <span className="terminal-kicker"><span className="terminal-accent">01</span> / CONFIGURE</span>
-          <span className="terminal-mono text-[11px] text-[#FF3D00]">[ INPUT ]</span>
-        </div>
-        <h3 className="terminal-heading mt-5 text-3xl sm:text-4xl">SET THE<br />PARAMETERS<span className="terminal-accent">.</span></h3>
-        <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
-          Select models, define your data and prepare the forecast run.
-        </p>
-      </div>
-
       <div className="flex flex-1 flex-col gap-7 px-5 py-6 sm:px-6">
         <div className="space-y-3">
           <span className="terminal-kicker">RUN TYPE / 01</span>
