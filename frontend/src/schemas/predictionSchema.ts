@@ -1,7 +1,8 @@
 import { z } from "zod";
 
 export const DataSourceEnum = z.enum(["binance", "yfinance", "local"]);
-export const ModelNameEnum = z.enum(["kronos-mini", "kronos-small", "kronos-base"]);
+export const ModelNameEnum = z.enum(["kronos-mini", "kronos-small", "kronos-base", "chronos-2", "timesfm-2.5", "fincast"]);
+export type ModelName = z.infer<typeof ModelNameEnum>;
 export const DeviceEnum = z.enum(["cpu", "cuda:0", "mps"]);
 
 export const PricePredictionRequestSchema = z.object({
@@ -14,6 +15,8 @@ export const PricePredictionRequestSchema = z.object({
   pred_len: z.number().int().min(1).default(120),
   limit: z.number().int().min(1).nullable().default(400),
   model_name: ModelNameEnum.default("kronos-mini"),
+  selected_models: z.array(ModelNameEnum).min(1).max(6).default(["kronos-mini", "kronos-small", "kronos-base"]),
+  model_ids: z.partialRecord(ModelNameEnum, z.string().trim().regex(/^[\w.-]+\/[\w.-]+$/, "Use owner/model as the Hugging Face ID")).default({}),
   device: DeviceEnum.default("cpu"),
   temperature: z.number().gt(0).default(1),
   top_k: z.number().int().min(0).default(0),
@@ -27,10 +30,14 @@ export const PricePredictionBatchRequestSchema = z.array(PricePredictionRequestS
 export const AvailableModelSchema = z.object({
   name: z.string(),
   model_id: z.string(),
-  tokenizer_id: z.string(),
+  tokenizer_id: z.string().nullable().default(null),
   context_length: z.number().int(),
   params: z.string(),
-  description: z.string()
+  description: z.string(),
+  adapter: z.string().default("kronos"),
+  output_type: z.enum(["candles", "close"]).default("candles"),
+  devices: z.array(DeviceEnum).default(["cpu", "cuda:0", "mps"]),
+  max_horizon: z.number().int().nullable().default(null)
 });
 
 export const CandleRecordSchema = z.object({
@@ -46,11 +53,15 @@ export const CandleRecordSchema = z.object({
 export const ModelComparisonSchema = z.object({
   model_name: ModelNameEnum,
   model: AvailableModelSchema,
-  prediction: z.array(CandleRecordSchema),
+  prediction: z.array(CandleRecordSchema.extend({
+    open: z.number().nullable().default(null), high: z.number().nullable().default(null),
+    low: z.number().nullable().default(null), volume: z.number().nullable().default(null),
+    amount: z.number().nullable().default(null)
+  })),
   direction: z.enum(["up", "down", "flat"]),
   predicted_change_pct: z.number(),
   confidence_score: z.number().min(0).max(100),
-  confidence_label: z.enum(["Low agreement", "Moderate agreement", "High agreement"]),
+  confidence_label: z.enum(["Low agreement", "Moderate agreement", "High agreement", "Not comparable"]),
   sample_count: z.number().int().min(1),
   direction_counts: z.object({
     up: z.number().int(),
@@ -61,7 +72,7 @@ export const ModelComparisonSchema = z.object({
 
 export const PredictionOptionsResponseSchema = z.object({
   data_sources: z.array(DataSourceEnum),
-  models: z.record(ModelNameEnum, AvailableModelSchema),
+  models: z.partialRecord(ModelNameEnum, AvailableModelSchema),
   devices: z.array(DeviceEnum),
   common_intervals: z.array(z.string()),
   common_periods: z.array(z.string()),
@@ -84,7 +95,7 @@ export const PricePredictionResponseSchema = z.object({
   prediction_start_timestamp: z.string(),
   history: z.array(CandleRecordSchema),
   future_timestamps: z.array(z.string()),
-  prediction: z.array(CandleRecordSchema),
+  prediction: ModelComparisonSchema.shape.prediction,
   model_comparisons: z.array(ModelComparisonSchema).default([])
 });
 
