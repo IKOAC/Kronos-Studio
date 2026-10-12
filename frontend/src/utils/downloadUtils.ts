@@ -459,14 +459,14 @@ function buildCSVContent(res: PricePredictionResponse): string {
   // History rows
   for (const candle of res.history) {
     lines.push(
-      `history,${candle.timestamps},${candle.open},${candle.high},${candle.low},${candle.close},${candle.volume},${candle.amount}`
+      `history,${candle.timestamps},${candle.open ?? ""},${candle.high ?? ""},${candle.low ?? ""},${candle.close},${candle.volume ?? ""},${candle.amount ?? ""}`
     );
   }
 
   // Prediction rows
   for (const candle of res.prediction) {
     lines.push(
-      `prediction,${candle.timestamps},${candle.open},${candle.high},${candle.low},${candle.close},${candle.volume},${candle.amount}`
+      `prediction,${candle.timestamps},${candle.open ?? ""},${candle.high ?? ""},${candle.low ?? ""},${candle.close},${candle.volume ?? ""},${candle.amount ?? ""}`
     );
   }
 
