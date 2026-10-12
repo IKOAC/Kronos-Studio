@@ -52,6 +52,9 @@ export default function LiveForecastOverlayChart({
   const candleSeriesRef = useRef<CandleSeriesUpdater | null>(null);
   const volumeSeriesRef = useRef<VolumeSeriesUpdater | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("connecting");
+  const dataSource = data.request.data_source;
+  const symbol = data.request.symbol?.trim().toLowerCase();
+  const interval = data.request.interval;
 
   useEffect(() => {
     const container = containerRef.current;
@@ -181,9 +184,7 @@ export default function LiveForecastOverlayChart({
   }, [data, showVolume]);
 
   useEffect(() => {
-    const symbol = data.request.symbol?.trim().toLowerCase();
-    const interval = data.request.interval;
-    if (!symbol || data.request.data_source !== "binance") return;
+    if (!symbol || dataSource !== "binance") return;
 
     let stopped = false;
     let socket: WebSocket | null = null;
@@ -241,7 +242,7 @@ export default function LiveForecastOverlayChart({
       if (retryTimer !== undefined) window.clearTimeout(retryTimer);
       socket?.close();
     };
-  }, [data.request.data_source, data.request.symbol, data.request.interval]);
+  }, [dataSource, symbol, interval]);
 
   return (
     <div className="flex h-full min-h-[360px] flex-col border bg-background">
