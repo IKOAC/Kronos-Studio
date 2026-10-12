@@ -41,7 +41,10 @@ const toChartTime = (value: string): UTCTimestamp => {
 const modelColors: Record<PricePredictionResponse["request"]["model_name"], string> = {
   "kronos-mini": "#60a5fa",
   "kronos-small": "#c084fc",
-  "kronos-base": "#fbbf24"
+  "kronos-base": "#fbbf24",
+  "chronos-2": "#34d399",
+  "timesfm-2.5": "#fb7185",
+  "fincast": "#22d3ee"
 };
 
 export default function LiveForecastOverlayChart({
