@@ -94,50 +94,60 @@ class BatchPricePredictionService:
         x_timestamp_list = [pd["x_timestamp"] for pd in prepared_data_list]
         y_timestamp_list = [pd["y_timestamp"] for pd in prepared_data_list]
 
-        # Run batch prediction
+        # Run the whole batch once per available model.
+        model_predictions = {}
+        active_model_name = first_request.model_name
         try:
-            prediction_dfs = self.prediction_service.predict_batch(
-                df_list=df_list,
-                x_timestamp_list=x_timestamp_list,
-                y_timestamp_list=y_timestamp_list,
-                pred_len=pred_len,
-                temperature=first_request.temperature,
-                top_k=first_request.top_k,
-                top_p=first_request.top_p,
-                sample_count=first_request.sample_count,
-                verbose=first_request.verbose,
-            )
+            for active_model_name in AVAILABLE_MODELS:
+                self.prediction_service.configure(
+                    model_name=active_model_name,
+                    device=first_request.device,
+                )
+                model_predictions[active_model_name] = self.prediction_service.predict_batch(
+                    df_list=df_list,
+                    x_timestamp_list=x_timestamp_list,
+                    y_timestamp_list=y_timestamp_list,
+                    pred_len=pred_len,
+                    temperature=first_request.temperature,
+                    top_k=first_request.top_k,
+                    top_p=first_request.top_p,
+                    sample_count=first_request.sample_count,
+                    verbose=first_request.verbose,
+                )
         except PredictionAPIError:
             raise
         except (OSError, FileNotFoundError) as exc:
             raise ModelLoadError(
-                "Could not load the selected Kronos model.",
-                details={
-                    "model_name": first_request.model_name,
-                    "device": first_request.device,
-                },
+                f"Could not load Kronos model '{active_model_name}'.",
+                details={"model_name": active_model_name, "device": first_request.device},
             ) from exc
         except RuntimeError as exc:
             raise PredictionRuntimeError(
-                "Batch prediction failed while running the model.",
+                f"Batch prediction failed while running model '{active_model_name}'.",
                 details={
-                    "model_name": first_request.model_name,
+                    "model_name": active_model_name,
                     "device": first_request.device,
                     "reason": str(exc),
                 },
             ) from exc
         except Exception as exc:
             raise PredictionRuntimeError(
-                "Batch prediction failed unexpectedly.",
-                details={"model_name": first_request.model_name},
+                f"Batch prediction failed unexpectedly for model '{active_model_name}'.",
+                details={"model_name": active_model_name},
             ) from exc
 
-        # Format results
+        # Format one comparison result per input series.
         results = []
-        for i, (request, prepared_data, prediction_df) in enumerate(
-            zip(requests, prepared_data_list, prediction_dfs)
-        ):
-            prediction_df = prediction_df.reset_index(names="timestamps")
+        for i, (request, prepared_data) in enumerate(zip(requests, prepared_data_list)):
+            prediction_df = model_predictions[request.model_name][i].reset_index(names="timestamps")
+            per_item_predictions = {
+                model_name: forecasts[i] for model_name, forecasts in model_predictions.items()
+            }
+            model_comparisons = self._build_model_comparisons(
+                model_predictions=per_item_predictions,
+                last_history_close=float(prepared_data["df"]["close"].iloc[-1]),
+                sample_count=request.sample_count,
+            )
 
             result = {
                 "request": request.model_dump(),
@@ -152,12 +162,12 @@ class BatchPricePredictionService:
                     prepared_data["y_timestamp"].iloc[0]
                 ),
                 "history": self._records_to_json(prepared_data["df"]),
-                "future_timestamps": self._timestamps_to_json(
-                    prepared_data["y_timestamp"]
-                ),
+                "future_timestamps": self._timestamps_to_json(prepared_data["y_timestamp"]),
                 "prediction": self._records_to_json(prediction_df),
+                "model_comparisons": model_comparisons,
             }
 
+            results.append(result)
             results.append(result)
         return results
 
@@ -168,6 +178,58 @@ class BatchPricePredictionService:
         #     "pred_len": pred_len,
         #     "results": results,
         # }
+
+    def _build_model_comparisons(
+        self,
+        model_predictions: dict,
+        last_history_close: float,
+        sample_count: int,
+    ) -> list[dict]:
+        """Summarize forecasts and directional consensus, not probability of accuracy."""
+        directions = {}
+        changes = {}
+        baseline = float(last_history_close)
+
+        for model_name, forecast_df in model_predictions.items():
+            final_close = float(forecast_df["close"].iloc[-1])
+            change_pct = ((final_close - baseline) / abs(baseline) * 100.0) if baseline != 0 else 0.0
+            if change_pct > 0.1:
+                direction = "up"
+            elif change_pct < -0.1:
+                direction = "down"
+            else:
+                direction = "flat"
+            directions[model_name] = direction
+            changes[model_name] = change_pct
+
+        direction_counts = {
+            direction: sum(1 for value in directions.values() if value == direction)
+            for direction in ("up", "down", "flat")
+        }
+        model_count = max(len(model_predictions), 1)
+        comparisons = []
+        for model_name, forecast_df in model_predictions.items():
+            direction = directions[model_name]
+            score = direction_counts[direction] / model_count * 100.0
+            if score >= 99.9:
+                label = "High agreement"
+            elif score >= 50.0:
+                label = "Moderate agreement"
+            else:
+                label = "Low agreement"
+            serializable_df = forecast_df.reset_index(names="timestamps")
+            comparisons.append({
+                "model_name": model_name,
+                "model": AVAILABLE_MODELS[model_name],
+                "prediction": self._records_to_json(serializable_df),
+                "direction": direction,
+                "predicted_change_pct": round(changes[model_name], 4),
+                "confidence_score": round(score, 1),
+                "confidence_label": label,
+                "sample_count": sample_count,
+                "direction_counts": direction_counts,
+            })
+        return comparisons
 
     def _validate_batch_requests(self, requests: List[PricePredictionRequest]):
         """Ensure all requests are compatible for batch processing."""
