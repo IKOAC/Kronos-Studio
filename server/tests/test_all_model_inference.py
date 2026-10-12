@@ -2,7 +2,7 @@
 
 import pandas as pd
 
-from constants.available_models import AVAILABLE_MODELS
+from constants.available_models import DEFAULT_MODELS
 from schemas.prediction import PricePredictionRequest, PricePredictionResponse
 from services.prediction_service.batch_price_prediction import BatchPricePredictionService
 from services.prediction_service.price_prediction import PricePredictionService
@@ -36,7 +36,7 @@ class FakeModelRunner:
         self.predicted = []
         self.current = None
 
-    def configure(self, model_name, device):
+    def configure(self, model_name, device, model_id=None):
         self.configured.append((model_name, device))
         self.current = model_name
         return self
@@ -71,11 +71,11 @@ def test_single_service_runs_every_model_and_preserves_primary_chart():
     result = service.predict_price(request)
     parsed = PricePredictionResponse.model_validate(result)
 
-    assert runner.predicted == list(AVAILABLE_MODELS)
+    assert runner.predicted == list(DEFAULT_MODELS)
     assert parsed.request.model_name == "kronos-small"
     assert parsed.prediction[-1].close == 102.0
     assert len(parsed.model_comparisons) == 3
-    assert {item.model_name for item in parsed.model_comparisons} == set(AVAILABLE_MODELS)
+    assert {item.model_name for item in parsed.model_comparisons} == set(DEFAULT_MODELS)
     assert {item.model_name: item.direction for item in parsed.model_comparisons} == {
         "kronos-mini": "up", "kronos-small": "up", "kronos-base": "down"
     }
@@ -92,9 +92,9 @@ def test_batch_service_runs_every_model_for_every_symbol():
     results = service.predict_batch(requests)
     parsed = [PricePredictionResponse.model_validate(result) for result in results]
 
-    assert runner.predicted == list(AVAILABLE_MODELS)
+    assert runner.predicted == list(DEFAULT_MODELS)
     assert len(parsed) == 2
     assert [x.request.symbol for x in parsed] == ["ETHUSDT", "BTCUSDT"]
     assert [x.prediction[-1].close for x in parsed] == [99.0, 199.0]
     assert all(len(x.model_comparisons) == 3 for x in parsed)
-    assert all({i.model_name for i in x.model_comparisons} == set(AVAILABLE_MODELS) for x in parsed)
+    assert all({i.model_name for i in x.model_comparisons} == set(DEFAULT_MODELS) for x in parsed)
