@@ -26,6 +26,10 @@ function formatDate(value: string) {
   }).format(new Date(value));
 }
 
+function formatOptional(value: number | null | undefined, digits: number) {
+  return value == null ? "—" : value.toFixed(digits);
+}
+
 function isBatchData(data: SavedResultDetail["data"]): data is PricePredictionResponse[] {
   return Array.isArray(data);
 }
@@ -46,7 +50,7 @@ function CandleTable({ result }: { result: PricePredictionResponse }) {
     <Card>
       <CardHeader>
         <CardTitle>Prediction Data</CardTitle>
-        <CardDescription>First {rows.length} forecast candles from the saved result.</CardDescription>
+        <CardDescription>First {rows.length} forecast points from the saved result.</CardDescription>
       </CardHeader>
       <CardContent className="overflow-x-auto">
         <table className="w-full min-w-[680px] border-collapse text-xs">
@@ -64,11 +68,11 @@ function CandleTable({ result }: { result: PricePredictionResponse }) {
             {rows.map((row) => (
               <tr key={row.timestamps} className="border-b last:border-b-0">
                 <td className="py-2 pr-3 text-muted-foreground">{row.timestamps}</td>
-                <td className="py-2 pr-3 text-right">{row.open.toFixed(4)}</td>
-                <td className="py-2 pr-3 text-right">{row.high.toFixed(4)}</td>
-                <td className="py-2 pr-3 text-right">{row.low.toFixed(4)}</td>
+                <td className="py-2 pr-3 text-right">{formatOptional(row.open, 4)}</td>
+                <td className="py-2 pr-3 text-right">{formatOptional(row.high, 4)}</td>
+                <td className="py-2 pr-3 text-right">{formatOptional(row.low, 4)}</td>
                 <td className="py-2 pr-3 text-right">{row.close.toFixed(4)}</td>
-                <td className="py-2 text-right">{row.volume.toFixed(2)}</td>
+                <td className="py-2 text-right">{formatOptional(row.volume, 2)}</td>
               </tr>
             ))}
           </tbody>
