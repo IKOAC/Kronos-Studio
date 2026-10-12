@@ -152,7 +152,7 @@ const Controllers = () => {
     <Card className='flex size-full'>
       <CardHeader>
         <CardTitle>Run setup</CardTitle>
-        <CardDescription>Configure source, model, and sampling.</CardDescription>
+        <CardDescription>Every prediction runs Mini, Small, and Base. Choose which model supplies the main chart.</CardDescription>
         <CardAction>
           <HugeiconsIcon icon={Setting07Icon} size={22} strokeWidth={1.8} />
         </CardAction>
@@ -169,7 +169,7 @@ const Controllers = () => {
 
         {/* Model selector (always visible) */}
         <div className='w-full flex flex-col gap-2'>
-          <h2 className='text-sm font-semibold'>Model choices</h2>
+          <h2 className='text-sm font-semibold'>Primary chart model</h2>
           <ModelSelector />
         </div>
 
