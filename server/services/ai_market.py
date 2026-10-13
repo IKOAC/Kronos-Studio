@@ -16,7 +16,7 @@ class MarketAnalysisService:
         self.data = data or OHLCVDataService()
         self.ai = ai or ProviderAnalysisService()
 
-    def analyze(self, request: MarketAnalysisRequest):
+    def load_snapshot(self, request: MarketAnalysisRequest):
         symbol = request.symbol.upper()
         if request.data_source == "binance":
             prepared = self.data.get_data_from_binance(
@@ -72,17 +72,22 @@ class MarketAnalysisService:
             "history": rows,
             "forecasts": [],
         }
-        if request.mode == "agents":
-            result = TradingAgentsService(self.ai).analyze(
-                TradingAgentsRequest.model_validate(snapshot)
-            )
-        else:
-            result = self.ai.analyze(GroqAnalysisRequest.model_validate(snapshot))
-        result["market_data"] = {
+        market_data = {
             "data_source": request.data_source,
             "candles": len(rows),
             "first_timestamp": rows[0]["timestamps"],
             "last_timestamp": rows[-1]["timestamps"],
             "retrieved_at_utc": datetime.now(timezone.utc).isoformat(),
         }
+        return GroqAnalysisRequest.model_validate(snapshot), market_data
+
+    def analyze(self, request: MarketAnalysisRequest):
+        snapshot, market_data = self.load_snapshot(request)
+        if request.mode == "agents":
+            result = TradingAgentsService(self.ai).analyze(
+                TradingAgentsRequest.model_validate(snapshot.model_dump())
+            )
+        else:
+            result = self.ai.analyze(snapshot)
+        result["market_data"] = market_data
         return result

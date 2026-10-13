@@ -34,7 +34,8 @@ from services.financial_analysis.engine import analyze_financials
 
 API_URL = "https://api.groq.com/openai/v1/chat/completions"
 DEFAULT_CAP_PERCENT = 80.0
-MAX_COMPLETION_TOKENS = 850
+# High reasoning shares the completion budget with the final JSON output.
+MAX_COMPLETION_TOKENS = 4096
 MAX_PROMPT_BYTES = 18_000
 
 FINDINGS_SCHEMA: dict[str, Any] = {
@@ -484,7 +485,7 @@ class GroqSession:
         delay = max(0, refill_needed - (time.monotonic() - self.rate_checked_at))
         if delay:
             delay += 0.05
-        if delay > 30:
+        if delay > getattr(self, "max_refill_wait", 30):
             raise GroqAnalysisError(
                 429,
                 "GROQ_RATE_LIMITED",

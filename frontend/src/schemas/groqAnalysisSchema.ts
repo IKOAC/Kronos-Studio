@@ -75,7 +75,7 @@ const QuotaSchema = z.object({
 export const GroqAnalysisResponseSchema = z.object({
   symbol: z.string(),
   interval: z.string(),
-  provider: z.enum(["groq", "routeway", "openrouter"]),
+  provider: z.literal("groq"),
   model: z.literal("openai/gpt-oss-120b"),
   metrics: z.object({
     technical: TechnicalMetricsSchema,
@@ -90,8 +90,8 @@ export const GroqAnalysisResponseSchema = z.object({
   }),
   forecast_consensus: z.enum(["up", "down", "flat", "mixed", "insufficient"]),
   quota: QuotaSchema,
-  providers_used: z.array(z.enum(["groq", "routeway", "openrouter"])).default([]),
-  provider_attempts: z.array(z.object({provider: z.enum(["groq", "routeway", "openrouter"]), http_status: z.number().int(), status: z.enum(["succeeded", "exhausted", "unavailable", "model_mismatch"])})).default([]),
+  providers_used: z.array(z.literal("groq")).default([]),
+  provider_attempts: z.array(z.object({provider: z.literal("groq"), http_status: z.number().int(), status: z.enum(["succeeded", "exhausted", "unavailable", "model_mismatch"])})).default([]),
   market_data: z.object({data_source: z.enum(["binance", "yfinance"]), candles: z.number().int(), first_timestamp: z.string(), last_timestamp: z.string(), retrieved_at_utc: z.string()}).nullable().optional(),
 });
 
@@ -159,34 +159,16 @@ export function buildGroqPayload(result: PricePredictionResponse) {
   };
 }
 
-const ProviderAllowanceSchema = z.object({
-  status: z.enum(["available", "partial", "permission_required", "unavailable"]),
-  balance_status: z.enum(["available", "permission_required", "unavailable"]),
-  key_status: z.enum(["available", "unavailable", "not_supported"]),
-  checked_at_utc: z.string(),
-  balance_remaining_usd: finite.nonnegative().nullable(),
-  account_credits_usd: finite.nonnegative().nullable(),
-  account_usage_usd: finite.nonnegative().nullable(),
-  spending_scope: z.enum(["key", "effective"]),
-  spending_limit_usd: finite.nonnegative().nullable(),
-  spending_used_usd: finite.nonnegative().nullable(),
-  spending_remaining_usd: finite.nonnegative().nullable(),
-  spending_percent: finite.nonnegative().nullable(),
-  limit_reset: z.enum(["daily", "weekly", "monthly"]).nullable(),
-  key_usage_daily_usd: finite.nonnegative().nullable(),
-});
-export type ProviderAllowance = z.infer<typeof ProviderAllowanceSchema>;
-
 export const AIProvidersSchema = z.object({
   model: z.literal("openai/gpt-oss-120b"),
-  fallback_order: z.array(z.enum(["groq", "routeway", "openrouter"])),
+  fallback_order: z.array(z.literal("groq")),
   providers: z.array(z.object({
-    provider: z.enum(["groq", "routeway", "openrouter"]),
-    model: z.enum(["openai/gpt-oss-120b", "gpt-oss-120b"]),
+    provider: z.literal("groq"),
+    model: z.literal("openai/gpt-oss-120b"),
     configured: z.boolean(),
     status: z.enum(["ready", "not_configured", "quota_exhausted", "cooldown", "tracker_unavailable"]),
+    failure_reason: z.enum(["exhausted", "unavailable", "model_mismatch", "model_unavailable", "request_rejected", "transport_error"]).nullable().optional(),
     quota: QuotaSchema.nullable(),
-    allowance: ProviderAllowanceSchema.nullable().optional(),
   })),
 });
 export type AIProviders = z.infer<typeof AIProvidersSchema>;

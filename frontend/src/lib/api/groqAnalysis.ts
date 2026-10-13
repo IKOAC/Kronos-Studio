@@ -6,17 +6,19 @@ import type { MarketAnalysisInput } from "@/schemas/groqAnalysisSchema";
 import type { PricePredictionResponse } from "@/schemas/predictionSchema";
 
 const messages: Record<string, string> = {
-  ALL_PROVIDERS_UNAVAILABLE: "All configured OSS-120B providers are unavailable or exhausted. Check provider status below.",
+  PROVIDER_REQUEST_REJECTED: "The provider rejected the analysis request. Check provider status for details.",
+  GROQ_MODEL_UNAVAILABLE: "Groq is not currently serving OSS-120B.",
+  ALL_PROVIDERS_UNAVAILABLE: "Groq is currently unavailable. Check its status below.",
   PROVIDER_NOT_CONFIGURED: "The provider connection is not configured in the backend.",
   MODEL_NOT_ALLOWED: "The provider did not return the required OSS-120B model.",
   MARKET_DATA_UNAVAILABLE: "Completed market data could not be loaded. Check the source, symbol and history period.",
   GROQ_DAILY_CAP: "The analysis would exceed the daily usage ceiling.",
-  GROQ_RATE_LIMITED: "The configured providers are rate-limiting requests. Try again later.",
+  GROQ_RATE_LIMITED: "Groq’s minute allowance needs to refill. Wait briefly before trying again.",
   GROQ_NOT_CONFIGURED: "The backend Groq credential is not configured.",
   TRACKER_UNAVAILABLE: "Quota tracking is unavailable. Analysis is blocked.",
   GROQ_INVALID_OUTPUT: "The provider returned an unsupported analysis. Usage was recorded.",
-  GROQ_TRANSPORT_ERROR: "Groq did not return a usable response. The attempt was recorded.",
-  GROQ_UPSTREAM_ERROR: "The provider could not complete the analysis.",
+  GROQ_TRANSPORT_ERROR: "Groq did not respond in time or the connection failed. The attempt was recorded; wait briefly before retrying.",
+  GROQ_UPSTREAM_ERROR: "Groq could not complete the analysis after a brief retry. Try again shortly.",
   AGENT_RUN_LIMIT: "The TradingAgents review reached its request limit.",
   AGENT_METRICS_CHANGED: "The research evidence failed its integrity check.",
   ANALYSIS_TOO_LARGE: "The analysis snapshot is too large.",

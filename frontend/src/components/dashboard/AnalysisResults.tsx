@@ -65,7 +65,7 @@ export default function AnalysisResults({ analysis }: { analysis: GroqAnalysisRe
         <div><h3 className="mb-2 text-xs font-semibold">Conflicting evidence</h3><Evidence ids={analysis.findings.conflicting_evidence_ids} analysis={analysis} /></div>
       </div>
       {analysis.findings.limitations.length > 0 && <div><h3 className="mb-2 text-xs font-semibold">Limitations</h3><ul className="list-inside list-disc space-y-1 text-xs text-muted-foreground">{analysis.findings.limitations.map(item => <li key={item}>{item}</li>)}</ul></div>}
-      {analysis.provider_attempts.some(a => a.status !== "succeeded") && <p className="text-xs text-muted-foreground">Fallback used after {analysis.provider_attempts.filter(a => a.status !== "succeeded").map(a => `${a.provider} (${a.status})`).join(", ")}.</p>}
+      {analysis.provider_attempts.some(a => a.status !== "succeeded") && <p className="text-xs text-muted-foreground">Recovered after {analysis.provider_attempts.filter(a => a.status !== "succeeded").map(a => `${a.provider} (${a.status})`).join(", ")}.</p>}
     </section>
   );
 }

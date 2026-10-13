@@ -10,7 +10,7 @@ from scalar_fastapi import get_scalar_api_reference
 
 from db.migrations import run_migrations
 from errors.errors import PredictionAPIError
-from routers import ai_market, financial_analysis, groq_analysis, prediction, results, trading_agents
+from routers import signal_scanner, ai_market, financial_analysis, groq_analysis, prediction, results, trading_agents
 
 
 @asynccontextmanager
@@ -34,6 +34,7 @@ app.include_router(financial_analysis.router, prefix="/api", tags=["Financial an
 app.include_router(groq_analysis.router, prefix="/api", tags=["Groq analysis"])
 app.include_router(trading_agents.router, prefix="/api", tags=["TradingAgents research"])
 app.include_router(ai_market.router, prefix="/api", tags=["AI dashboard"])
+app.include_router(signal_scanner.router, prefix="/api", tags=["Signal scanner"])
 
 app.add_middleware(
     CORSMiddleware,

@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 from urllib.parse import urlencode
 
 import pandas as pd
@@ -111,7 +112,7 @@ class OHLCVDataService:
         df["timestamps"] = pd.to_datetime(df["open_time"], unit="ms")
         df["amount"] = pd.to_numeric(df["quote_asset_volume"], errors="coerce")
 
-        return self._prepare_prediction_data(df, lookback, pred_len)
+        return self._prepare_prediction_data(df, lookback, pred_len, interval=interval)
 
     def get_data_from_yfinance(
         self,
@@ -178,7 +179,7 @@ class OHLCVDataService:
             }
         )
 
-        return self._prepare_prediction_data(df, lookback, pred_len)
+        return self._prepare_prediction_data(df, lookback, pred_len, interval=interval)
 
     def get_data_from_local_storage(
         self,
@@ -214,7 +215,7 @@ class OHLCVDataService:
 
         return self._prepare_prediction_data(df, lookback, pred_len)
 
-    def _prepare_prediction_data(self, df, lookback: int, pred_len: int):
+    def _prepare_prediction_data(self, df, lookback: int, pred_len: int, interval: str | None = None):
         """Normalize candle columns and build the inputs expected by PredictCandles."""
         df = self._normalize_columns(df)
 
@@ -228,7 +229,7 @@ class OHLCVDataService:
             ["timestamps", "open", "high", "low", "close", "volume", "amount"]
         ]
         x_timestamp = df.iloc[-lookback:]["timestamps"]
-        y_timestamp = self._make_future_timestamps(df["timestamps"], pred_len)
+        y_timestamp = self._make_future_timestamps(df["timestamps"], pred_len, interval)
 
         return {
             "df": x_df,
@@ -294,12 +295,30 @@ class OHLCVDataService:
             )
         return df.sort_values("timestamps").reset_index(drop=True)
 
-    def _make_future_timestamps(self, timestamps, pred_len: int):
-        """Create future timestamps using the last observed time interval."""
-        if len(timestamps) < 2:
+    def _make_future_timestamps(self, timestamps, pred_len: int, interval: str | None = None):
+        """Use provider cadence, or the most common positive local-data spacing.
+
+        These are nominal forecast steps, not an exchange trading calendar.
+        """
+        if interval is not None:
+            match = re.fullmatch(r"([1-9]\d*)(m|h|d|w|wk|mo|M)", interval)
+            if match is None:
+                raise DataFormatError("Cannot generate timestamps for the selected interval.",
+                                      details={"interval": interval})
+            count, unit = int(match[1]), match[2]
+            if unit in {"mo", "M"}:
+                freq = pd.DateOffset(months=count)
+            else:
+                units = {"m": "minutes", "h": "hours", "d": "days", "w": "weeks", "wk": "weeks"}
+                freq = pd.Timedelta(**{units[unit]: count})
+        elif len(timestamps) < 2:
             freq = pd.Timedelta(hours=1)
         else:
-            freq = timestamps.iloc[-1] - timestamps.iloc[-2]
+            spacings = timestamps.diff().dropna()
+            spacings = spacings[spacings > pd.Timedelta(0)]
+            if spacings.empty:
+                raise DataFormatError("At least two distinct timestamps are required to infer the candle interval.")
+            freq = spacings.mode().iloc[0]
 
         return pd.Series(
             pd.date_range(

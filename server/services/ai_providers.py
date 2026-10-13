@@ -1,4 +1,4 @@
-"""Fixed OSS-120B provider chain. Every attempt is metered; quota fallback never sleeps."""
+"""Groq-only OSS-120B analysis with metered JSON recovery and bounded pacing."""
 
 from __future__ import annotations
 
@@ -18,10 +18,10 @@ import urllib.error
 import urllib.request
 
 from schemas.groq_analysis import GROQ_MODEL, GroqQuota
-from services.ai_allowance import DEFAULT_REPORTER
 from services.groq_analysis import (
     GroqAnalysisError,
     GroqAnalysisService,
+    GroqSession,
     MAX_COMPLETION_TOKENS,
     MAX_PROMPT_BYTES,
     _private_directory,
@@ -44,32 +44,20 @@ PROVIDERS = (
         GROQ_MODEL,
         "GROQ_API_KEY",
     ),
-    Provider(
-        "routeway",
-        "https://api.routeway.ai/v1/chat/completions",
-        "gpt-oss-120b",
-        "ROUTEWAY_API_KEY",
-    ),
-    Provider(
-        "openrouter",
-        "https://openrouter.ai/api/v1/chat/completions",
-        GROQ_MODEL,
-        "OPENROUTER_API_KEY",
-    ),
 )
 # Only provider aliases for the same 120B model, never another size or model.
-MODEL_IDENTITIES = frozenset({GROQ_MODEL, "gpt-oss-120b"})
+MODEL_IDENTITIES = frozenset({GROQ_MODEL})
 
 
 def now_utc():
     return datetime.now(timezone.utc).date().isoformat()
 
 
-def unavailable(code="ALL_PROVIDERS_UNAVAILABLE", status=503):
+def unavailable(code="GROQ_UPSTREAM_ERROR", status=503):
     return GroqAnalysisError(
         status,
         code,
-        "All configured OSS-120B providers are unavailable or have exhausted their allowance.",
+        "Groq is currently unavailable for OSS-120B analysis.",
     )
 
 
@@ -147,7 +135,9 @@ class ProviderJournal:
             pending_5pct_alerts=[],
         )
 
-    def record(self, provider, usage, status, estimated_tokens):
+    def record(
+        self, provider, usage, status, estimated_tokens, *, generation_failed=False
+    ):
         self.ensure()
         known = isinstance(usage, dict) and all(
             isinstance(usage.get(k), int)
@@ -164,7 +154,7 @@ class ProviderJournal:
                 if isinstance(cached, int):
                     tokens -= min(max(0, cached), usage["prompt_tokens"])
         else:
-            tokens = estimated_tokens if status in (0, 200) else 0
+            tokens = estimated_tokens if status in (0, 200) or generation_failed else 0
         cost = usage.get("cost") if isinstance(usage, dict) else None
         if not isinstance(cost, (int, float)) or not math.isfinite(cost) or cost < 0:
             cost = None
@@ -174,7 +164,7 @@ class ProviderJournal:
             "provider": provider,
             "model": GROQ_MODEL,
             "tokens": tokens,
-            "estimated": not known and status in (0, 200),
+            "estimated": not known and (status in (0, 200) or generation_failed),
             "http_status": status,
             "reported_cost": cost,
         }
@@ -226,7 +216,6 @@ class ProviderAnalysisService(GroqAnalysisService):
         provider_transport=None,
         groq_tracker=None,
         lock_path=None,
-        allowance_reporter=None,
     ):
         super().__init__(tracker=groq_tracker, lock_path=lock_path)
         self.key_directory = key_directory or Path.home() / ".config" / "kronos-studio"
@@ -234,7 +223,6 @@ class ProviderAnalysisService(GroqAnalysisService):
             journal_root or Path.home() / ".local" / "share" / "kronos-ai"
         )
         self.provider_transport = provider_transport or self.send_provider
-        self.allowance_reporter = allowance_reporter or DEFAULT_REPORTER
 
     def key(self, provider):
         key = os.environ.get(provider.env, "").strip()
@@ -249,31 +237,6 @@ class ProviderAnalysisService(GroqAnalysisService):
         if len(key) < 20 or not key.isascii() or "\n" in key or "\r" in key:
             raise unavailable("PROVIDER_NOT_CONFIGURED")
         return key
-
-    def management_key(self, provider):
-        """Reporting credential only; never used for model inference."""
-        key = os.environ.get(provider.upper() + "_MANAGEMENT_KEY", "").strip()
-        if not key:
-            path = self.key_directory / (provider + "_management_key")
-            if not _private_directory(path.parent) or not _private_file(path):
-                return None
-            try:
-                key = path.read_text(encoding="ascii").strip()
-            except (OSError, UnicodeError):
-                return None
-        return (
-            key
-            if len(key) >= 20 and key.isascii() and "\n" not in key and "\r" not in key
-            else None
-        )
-
-    def cached_allowance(self, provider):
-        if provider == "groq":
-            return None
-        descriptor = next(p for p in PROVIDERS if p.name == provider)
-        return self.allowance_reporter.peek(
-            provider, self.key(descriptor), self.management_key(provider)
-        )
 
     def limits(self, provider):
         path = self.key_directory / "provider_limits.json"
@@ -308,7 +271,7 @@ class ProviderAnalysisService(GroqAnalysisService):
         for provider in PROVIDERS:
             configured = True
             quota = None
-            allowance = None
+            failure_reason = None
             try:
                 credential = self.key(provider)
             except GroqAnalysisError:
@@ -325,30 +288,27 @@ class ProviderAnalysisService(GroqAnalysisService):
                 block = self.journal.blocked(provider.name)
                 if configured and block:
                     status = "cooldown"
+                    failure_reason = block.get("reason")
+                    if failure_reason not in {
+                        "exhausted",
+                        "unavailable",
+                        "model_mismatch",
+                        "model_unavailable",
+                        "request_rejected",
+                        "transport_error",
+                    }:
+                        failure_reason = "unavailable"
             except GroqAnalysisError:
                 if configured:
                     status = "tracker_unavailable"
-            if configured and provider.name != "groq":
-                allowance = self.allowance_reporter.report(
-                    provider.name, credential, self.management_key(provider.name)
-                )
-                if status == "ready" and any(
-                    allowance.get(field) == 0
-                    for field in (
-                        "balance_remaining_usd",
-                        "spending_remaining_usd",
-                        "spending_limit_usd",
-                    )
-                ):
-                    status = "quota_exhausted"
             result.append(
                 {
                     "provider": provider.name,
                     "model": provider.model,
                     "configured": configured,
                     "status": status,
+                    "failure_reason": failure_reason,
                     "quota": quota.model_dump() if quota else None,
-                    "allowance": allowance,
                 }
             )
         return {
@@ -367,12 +327,19 @@ class ProviderAnalysisService(GroqAnalysisService):
         body["model"] = provider.model
         for name in ("models", "route", "fallbacks", "preset", "provider", "api_key"):
             body.pop(name, None)
-        if provider.name != "groq":
-            body["max_tokens"] = body.pop("max_completion_tokens")
-        if provider.name == "openrouter":
-            body.pop("reasoning_effort", None)
-            body["reasoning"] = {"effort": "high", "exclude": True}
-            body["provider"] = {"require_parameters": True}
+        return body
+
+    @staticmethod
+    def json_recovery_payload(body):
+        body = json.loads(json.dumps(body))
+        schema = body["response_format"]["json_schema"]["schema"]
+        body["response_format"] = {"type": "json_object"}
+        body["messages"][0][
+            "content"
+        ] += " Return JSON matching this schema: " + json.dumps(
+            schema, separators=(",", ":")
+        )
+        body["reasoning_format"] = "hidden"
         return body
 
     @staticmethod
@@ -394,14 +361,37 @@ class ProviderAnalysisService(GroqAnalysisService):
             method="POST",
         )
         try:
-            with opener.open(request, timeout=20) as response:
+            with opener.open(request, timeout=45) as response:
                 return (
                     response.status,
                     json.load(response),
                     dict(response.headers.items()),
                 )
         except urllib.error.HTTPError as exc:
-            return exc.code, {}, dict(exc.headers.items())
+            # Classify errors without retaining upstream text, prompts or credentials.
+            code = "request_rejected"
+            try:
+                data = json.loads(exc.read(65536))
+                error = data.get("error", {}) if isinstance(data, dict) else {}
+                message = (
+                    str(error.get("message", "")).lower()
+                    if isinstance(error, dict)
+                    else ""
+                )
+                if (
+                    isinstance(error, dict)
+                    and error.get("code") == "json_validate_failed"
+                ):
+                    code = "output_invalid"
+                elif (
+                    exc.code == 404
+                    or "no model found" in message
+                    or "unavailable for free" in message
+                ):
+                    code = "model_unavailable"
+            except (OSError, ValueError, TypeError):
+                pass
+            return exc.code, {"error": {"code": code}}, dict(exc.headers.items())
         except (OSError, TimeoutError, ValueError, urllib.error.URLError) as exc:
             raise GroqAnalysisError(
                 502,
@@ -438,22 +428,14 @@ class ProviderSession:
         self.providers_used = []
         self.attempts = []
         self.rate_headers = {}
+        self.rate_checked_at = 0.0
+        self.max_refill_wait = 45
 
     @property
     def tracker(self):
         return self.provider
 
     def budget(self, name, tokens, requests):
-        allowance = self.service.cached_allowance(name)
-        if allowance and any(
-            allowance.get(field) == 0
-            for field in (
-                "balance_remaining_usd",
-                "spending_remaining_usd",
-                "spending_limit_usd",
-            )
-        ):
-            return False
         quota = self.service.provider_quota(name)
         return not (
             (
@@ -487,37 +469,55 @@ class ProviderSession:
         candidates = list(PROVIDERS)
         if self.providers_used:
             candidates.sort(key=lambda p: p.name != self.provider)
-        for provider in candidates:
+        recovery_pending = False
+        generation_failed_this_turn = False
+        retry_used = False
+        for candidate_index, provider in enumerate(candidates):
             name = provider.name
             try:
                 key = self.service.key(provider)
-                if self.service.journal.blocked(name) or not self.budget(
-                    name, reserve, remaining_turns
-                ):
+                block = self.service.journal.blocked(name)
+                if block:
+                    if block.get("reason") == "exhausted":
+                        raise GroqAnalysisError(
+                            429,
+                            "GROQ_RATE_LIMITED",
+                            "Groq is waiting for its quota to reset.",
+                        )
                     continue
-            except GroqAnalysisError:
+                if not self.budget(name, reserve, remaining_turns):
+                    raise GroqAnalysisError(
+                        429,
+                        "GROQ_DAILY_CAP",
+                        "The analysis would exceed Groq's daily usage ceiling.",
+                    )
+            except GroqAnalysisError as exc:
+                if exc.code != "PROVIDER_NOT_CONFIGURED":
+                    raise
                 continue
-            # Previously reported exhausted minute tokens switch immediately.
-            if name == self.provider:
-                try:
-                    if int(self.rate_headers["x-ratelimit-remaining-requests"]) <= 0:
-                        continue
-                except (KeyError, ValueError, TypeError):
-                    pass
-                try:
-                    remaining_tokens = int(
-                        self.rate_headers["x-ratelimit-remaining-tokens"]
-                    )
-                    needed_tokens = (
-                        sum(len(m["content"].encode()) for m in payload["messages"])
-                        // 2
-                        + MAX_COMPLETION_TOKENS
-                    )
-                    if remaining_tokens < needed_tokens:
-                        continue
-                except (KeyError, ValueError, TypeError):
-                    pass
             body = self.service.wire_payload(provider, payload)
+            recovering = recovery_pending and name == "groq"
+            if recovering:
+                recovery_pending = False
+                body = self.service.json_recovery_payload(body)
+                if len(json.dumps(body).encode()) > MAX_PROMPT_BYTES:
+                    continue
+            # Include the structured-output schema in the input estimate. It
+            # consumes allowance too, even though it is outside the messages.
+            needed_tokens = len(json.dumps(body).encode()) // 2 + MAX_COMPLETION_TOKENS
+            GroqSession._pace(self, needed_tokens)
+            try:
+                if (
+                    int(self.rate_headers.get("x-ratelimit-remaining-requests", "1"))
+                    <= 0
+                ):
+                    raise GroqAnalysisError(
+                        429,
+                        "GROQ_RATE_LIMITED",
+                        "Groq's request allowance is exhausted.",
+                    )
+            except (ValueError, TypeError):
+                pass
             self.requests_sent += 1
             try:
                 status, response, headers = self.service.provider_transport(
@@ -528,11 +528,17 @@ class ProviderSession:
                 # uncertain attempt conservatively before trying another provider.
                 status, response, headers = 0, {}, {}
             usage = response.get("usage") if isinstance(response, dict) else None
-            estimated = payload_bytes + MAX_COMPLETION_TOKENS
-            self.tokens_used += self.service.journal.record(
-                name, usage, status, estimated
+            error = response.get("error", {}) if isinstance(response, dict) else {}
+            generation_failed = (
+                status == 400
+                and name == "groq"
+                and isinstance(error, dict)
+                and error.get("code") == "output_invalid"
             )
-            self.service.allowance_reporter.invalidate(name)
+            estimated = len(json.dumps(body).encode()) + MAX_COMPLETION_TOKENS
+            self.tokens_used += self.service.journal.record(
+                name, usage, status, estimated, generation_failed=generation_failed
+            )
             if name == "groq":
                 recorded_usage = (
                     usage
@@ -543,10 +549,10 @@ class ProviderSession:
                     )
                     else (
                         {
-                            "prompt_tokens": payload_bytes,
+                            "prompt_tokens": len(json.dumps(body).encode()),
                             "completion_tokens": MAX_COMPLETION_TOKENS,
                         }
-                        if status in (0, 200)
+                        if status in (0, 200) or generation_failed
                         else {}
                     )
                 )
@@ -556,6 +562,28 @@ class ProviderSession:
                     )
                 except Exception as exc:
                     raise unavailable("TRACKER_UNAVAILABLE") from exc
+            if generation_failed:
+                generation_failed_this_turn = True
+                self.attempts.append(
+                    {"provider": name, "http_status": status, "status": "unavailable"}
+                )
+                # Exactly one format recovery, metered and checked against the quota.
+                # Output-generation failure does not establish a provider outage.
+                if not retry_used:
+                    retry_used = True
+                    recovery_pending = True
+                    candidates.insert(candidate_index + 1, provider)
+                continue
+            if status in (502, 503, 504) and not retry_used:
+                # One bounded retry for an upstream gateway failure. Rate-limit
+                # and credit failures are never retried here.
+                retry_used = True
+                self.attempts.append(
+                    {"provider": name, "http_status": status, "status": "unavailable"}
+                )
+                time.sleep(1)
+                candidates.insert(candidate_index + 1, provider)
+                continue
             if status != 200:
                 seconds = 3600 if status == 402 else 60
                 if status == 429:
@@ -573,11 +601,25 @@ class ProviderSession:
                         )
                     except (ValueError, TypeError):
                         pass
-                self.service.journal.block(
-                    name,
-                    seconds,
-                    "exhausted" if status in (402, 429) else "unavailable",
+                reason = (
+                    "exhausted"
+                    if status in (402, 429)
+                    else "transport_error" if status == 0 else "unavailable"
                 )
+                if status in (400, 404, 422):
+                    error = (
+                        response.get("error", {}) if isinstance(response, dict) else {}
+                    )
+                    reason = (
+                        "model_unavailable"
+                        if status == 404
+                        or (
+                            isinstance(error, dict)
+                            and error.get("code") == "model_unavailable"
+                        )
+                        else "request_rejected"
+                    )
+                self.service.journal.block(name, seconds, reason)
                 self.attempts.append(
                     {
                         "provider": name,
@@ -610,8 +652,37 @@ class ProviderSession:
                 for k, v in headers.items()
                 if k.lower().startswith("x-ratelimit-")
             }
+            self.rate_checked_at = time.monotonic()
             self.attempts.append(
                 {"provider": name, "http_status": status, "status": "succeeded"}
             )
             return findings
-        raise unavailable(status=429)
+        if generation_failed_this_turn:
+            raise GroqAnalysisError(
+                502,
+                "GROQ_INVALID_OUTPUT",
+                "The provider could not generate valid analysis JSON.",
+            )
+        blocks = [self.service.journal.blocked(p.name) for p in PROVIDERS]
+        reasons = {block.get("reason") for block in blocks if block}
+        if "transport_error" in reasons:
+            raise unavailable("GROQ_TRANSPORT_ERROR", status=502)
+        if "request_rejected" in reasons:
+            raise GroqAnalysisError(
+                502,
+                "PROVIDER_REQUEST_REJECTED",
+                "A provider rejected the analysis request.",
+            )
+        if "exhausted" in reasons:
+            raise GroqAnalysisError(
+                429, "GROQ_RATE_LIMITED", "Groq is rate limiting analysis requests."
+            )
+        if "model_mismatch" in reasons:
+            raise unavailable("MODEL_NOT_ALLOWED", status=502)
+        if "model_unavailable" in reasons:
+            raise GroqAnalysisError(
+                503,
+                "GROQ_MODEL_UNAVAILABLE",
+                "Groq is not serving the configured OSS-120B model.",
+            )
+        raise unavailable(status=502)

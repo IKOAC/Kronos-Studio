@@ -14,7 +14,7 @@ so the frontend can pass the response straight through without any reshaping.
 
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from schemas.prediction import PricePredictionResponse
 
@@ -49,6 +49,12 @@ class SaveResultRequest(BaseModel):
         ...,
         description="The full prediction response payload.",
     )
+
+    @model_validator(mode="after")
+    def validate_data_shape(self):
+        if (self.type == "predict/price/batch") != isinstance(self.data, list):
+            raise ValueError("Result type must match the prediction data shape.")
+        return self
 
 
 # ── Responses ─────────────────────────────────────────────────────────────────

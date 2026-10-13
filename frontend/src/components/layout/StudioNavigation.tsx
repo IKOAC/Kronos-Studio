@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowDownRight, ArrowUpRight, ChartNoAxesCombined, Layers3, Radar } from "lucide-react";
 
 type StudioNavigationProps = {
-  active: "workspace" | "archive" | "analysis";
+  active: "workspace" | "archive" | "analysis" | "scanner";
 };
 
 const linkBase = "group flex min-h-12 items-center justify-between border-l-2 px-4 text-[12px] font-semibold tracking-[0.02em] transition-colors duration-150 focus-visible:outline-offset-[-3px]";
@@ -37,6 +37,10 @@ export default function StudioNavigation({ active }: StudioNavigationProps) {
             <span className="flex items-center gap-3"><Radar size={16} strokeWidth={1.5} /> AI analysis</span>
             <ArrowDownRight size={14} strokeWidth={1.5} />
           </Link>
+          <Link href="/signal-scanner" aria-current={active === "scanner" ? "page" : undefined} className={linkBase + " " + (active === "scanner" ? activeClass : inactiveClass)}>
+            <span className="flex items-center gap-3"><Radar size={16} strokeWidth={1.5} /> Signal scanner</span>
+            <span className="terminal-mono text-[9px] text-[#ff8a62]">SCAN</span>
+          </Link>
           <p className="terminal-mono px-6 pt-2 text-[10px] leading-relaxed text-muted-foreground">Independent market analysis. Runs on click.</p>
         </nav>
 
@@ -44,6 +48,7 @@ export default function StudioNavigation({ active }: StudioNavigationProps) {
           <Link href="/" className={"terminal-link px-2 py-2 " + (active === "workspace" ? "text-[#FF3D00]" : "text-muted-foreground")}>Studio</Link>
           <Link href="/saved-results" className={"terminal-link px-2 py-2 " + (active === "archive" ? "text-[#FF3D00]" : "text-muted-foreground")}>Archive</Link>
           <Link href="/ai-analysis" className={"terminal-link px-2 py-2 " + (active === "analysis" ? "text-[#FF3D00]" : "text-muted-foreground")}>AI</Link>
+          <Link href="/signal-scanner" className={"terminal-link px-2 py-2 " + (active === "scanner" ? "text-[#FF3D00]" : "text-muted-foreground")}>Scan</Link>
         </div>
 
         <div className="hidden lg:mt-[min(18vh,220px)] lg:block lg:border-t lg:border-border lg:px-6 lg:py-8">

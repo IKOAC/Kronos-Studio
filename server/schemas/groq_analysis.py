@@ -43,6 +43,7 @@ class GroqFindings(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    setup_verdict: Literal["supports", "rejects", "unclear"] | None = None
     summary: str = Field(min_length=1, max_length=380)
     supporting_evidence_ids: list[str] = Field(max_length=5)
     conflicting_evidence_ids: list[str] = Field(max_length=5)
@@ -93,14 +94,12 @@ class GroqQuota(BaseModel):
 class GroqAnalysisResponse(BaseModel):
     symbol: str
     interval: str
-    provider: Literal["groq", "routeway", "openrouter"] = "groq"
+    provider: Literal["groq"] = "groq"
     model: Literal["openai/gpt-oss-120b"] = GROQ_MODEL
     metrics: FinancialAnalysisResponse
     findings: GroqFindings
     forecast_consensus: Literal["up", "down", "flat", "mixed", "insufficient"]
     quota: GroqQuota
-    providers_used: list[Literal["groq", "routeway", "openrouter"]] = Field(
-        default_factory=list
-    )
+    providers_used: list[Literal["groq"]] = Field(default_factory=list)
     provider_attempts: list[dict] = Field(default_factory=list)
     market_data: dict | None = None

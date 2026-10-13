@@ -65,7 +65,7 @@ class TradingAgentsService:
 
         self.groq = groq or ProviderAnalysisService()
 
-    def analyze(self, request: TradingAgentsRequest) -> dict:
+    def analyze(self, request: TradingAgentsRequest, on_event=None) -> dict:
         started = time.perf_counter()
         metrics = FinancialAnalysisResponse.model_validate(analyze_financials(request))
         immutable_metrics = metrics.model_dump_json()
@@ -102,10 +102,14 @@ class TradingAgentsService:
                 ("bear", create_bear_researcher),
                 ("research_manager", create_research_manager),
             ):
+                if on_event:
+                    on_event("agent_started", {"role": role})
                 llm = MeteredResearchLLM(
                     role, session, self.groq, metrics, request, reviews
                 )
                 state.update(factory(llm)(state))
+                if on_event:
+                    on_event("agent_completed", reviews[-1].model_dump())
             _, quota = self.groq._quota(session.tracker)
             stats = AgentRunStats(
                 requests_used=session.requests_sent,

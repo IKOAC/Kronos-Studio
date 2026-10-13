@@ -98,7 +98,12 @@ class BatchPricePredictionService:
         x_timestamp_list = [pd["x_timestamp"] for pd in prepared_data_list]
         y_timestamp_list = [pd["y_timestamp"] for pd in prepared_data_list]
 
-        # Run the whole batch once per selected model.
+        # Batch only items with identical sampling settings, preserving input order.
+        sampling_groups = {}
+        for index, request in enumerate(requests):
+            settings = (request.temperature, request.top_k, request.top_p,
+                        request.sample_count, request.verbose)
+            sampling_groups.setdefault(settings, []).append(index)
         model_predictions = {}
         active_model_name = first_request.model_name
         try:
@@ -108,17 +113,23 @@ class BatchPricePredictionService:
                     device=first_request.device,
                     model_id=first_request.model_ids.get(active_model_name),
                 )
-                model_predictions[active_model_name] = self.prediction_service.predict_batch(
-                    df_list=df_list,
-                    x_timestamp_list=x_timestamp_list,
-                    y_timestamp_list=y_timestamp_list,
-                    pred_len=pred_len,
-                    temperature=first_request.temperature,
-                    top_k=first_request.top_k,
-                    top_p=first_request.top_p,
-                    sample_count=first_request.sample_count,
-                    verbose=first_request.verbose,
-                )
+                forecasts = [None] * len(requests)
+                for settings, indices in sampling_groups.items():
+                    temperature, top_k, top_p, sample_count, verbose = settings
+                    group_forecasts = self.prediction_service.predict_batch(
+                        df_list=[df_list[i] for i in indices],
+                        x_timestamp_list=[x_timestamp_list[i] for i in indices],
+                        y_timestamp_list=[y_timestamp_list[i] for i in indices],
+                        pred_len=pred_len,
+                        temperature=temperature,
+                        top_k=top_k,
+                        top_p=top_p,
+                        sample_count=sample_count,
+                        verbose=verbose,
+                    )
+                    for index, forecast in zip(indices, group_forecasts, strict=True):
+                        forecasts[index] = forecast
+                model_predictions[active_model_name] = forecasts
         except PredictionAPIError:
             raise
         except (OSError, FileNotFoundError) as exc:
@@ -151,7 +162,7 @@ class BatchPricePredictionService:
             model_comparisons = self._build_model_comparisons(
                 model_predictions=per_item_predictions,
                 last_history_close=float(prepared_data["df"]["close"].iloc[-1]),
-                sample_count=first_request.sample_count,
+                sample_count=request.sample_count,
                 model_ids=first_request.model_ids,
             )
 

@@ -46,21 +46,19 @@ async def upload_local_data_file(
             details={"filename": original_name},
         )
 
-    contents = await file.read()
+    contents = bytearray()
+    while chunk := await file.read(min(1024 * 1024, MAX_UPLOAD_BYTES + 1 - len(contents))):
+        contents.extend(chunk)
+        if len(contents) > MAX_UPLOAD_BYTES:
+            raise DataFormatError(
+                "The uploaded CSV file is too large.",
+                details={"filename": original_name, "max_size_bytes": MAX_UPLOAD_BYTES},
+            )
     size_bytes = len(contents)
     if size_bytes == 0:
         raise DataFormatError(
             "The uploaded CSV file is empty.",
             details={"filename": original_name},
-        )
-    if size_bytes > MAX_UPLOAD_BYTES:
-        raise DataFormatError(
-            "The uploaded CSV file is too large.",
-            details={
-                "filename": original_name,
-                "size_bytes": size_bytes,
-                "max_size_bytes": MAX_UPLOAD_BYTES,
-            },
         )
 
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)

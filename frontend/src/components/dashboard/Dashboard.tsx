@@ -6,6 +6,7 @@ import { Combobox, ComboboxInput, ComboboxContent, ComboboxList, ComboboxItem } 
 import InfoPanel from "./InfoPanel";
 import PredictionChart from "./PredictionChart";
 import ModelComparisonPanel from "./ModelComparisonPanel";
+import ForecastAIAnalysis from "./ForecastAIAnalysis";
 import DownloadActions from "./DownloadActions";
 import SaveResultAction from "./SaveResultAction";
 import { usePricePredictionStore } from "@/stores/pricePredictionStore";
@@ -137,6 +138,10 @@ const Dashboard = () => {
               <PredictionChart ref={chartRef} data={displayResult} />
             </div>
             <ModelComparisonPanel comparisons={displayResult.model_comparisons ?? []} />
+            <ForecastAIAnalysis
+              key={JSON.stringify([mode, activeResultIndex, displayResult.request, displayResult.history.at(-1), displayResult.prediction.at(-1), displayResult.model_comparisons?.map((comparison) => comparison.prediction.at(-1))])}
+              result={displayResult}
+            />
           </div>
         ) : (
           <div className="relative flex min-h-[510px] flex-col items-center justify-center overflow-hidden border border-border bg-card px-6 text-center">
